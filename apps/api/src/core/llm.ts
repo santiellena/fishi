@@ -13,9 +13,9 @@ export interface LLMResponse {
   usage: { input: number; output: number };
 }
 
-/** Única interfaz hacia el modelo: la usan el agente y, luego, el analyzer. Permite mockear en tests. */
+/** Única interfaz hacia el modelo: la usa el analizador Fishi. Permite mockear en tests. */
 export interface LLMClient {
-  /** Identificador del modelo, para auditar que las corridas comparadas usan el mismo. */
+  /** Identificador del modelo configurado en el backend. */
   readonly model?: string;
   complete(req: LLMRequest): Promise<LLMResponse>;
 }
@@ -25,7 +25,7 @@ export class AnthropicClient implements LLMClient {
 
   constructor(readonly model: string, apiKey?: string) {
     // La clave se lee del entorno del backend; nunca se registra.
-    this.client = new Anthropic({ apiKey, maxRetries: 2 });
+    this.client = new Anthropic({ apiKey, maxRetries: 0, timeout: 40000 });
   }
 
   async complete(req: LLMRequest): Promise<LLMResponse> {
