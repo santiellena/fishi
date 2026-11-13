@@ -72,6 +72,6 @@ Pruebas con mocks: reportes benignos/maliciosos, señales, evidencia inventada, 
 
 Fishi es un proyecto independiente organizado en npm workspaces: API Express con TypeScript y Zod, interfaz React/Vite y extensión Manifest V3. La API centraliza el cliente de Claude, el analizador y el historial en memoria; ambas interfaces consumen el mismo contrato. Vitest cubre los tres workspaces con mocks.
 
-Los identificadores internos de los paquetes API y web siguen siendo `@inboxeye/api` y `@inboxeye/web`; los comandos de la raíz los encapsulan. El material de `archive/inboxeye/` está excluido de la compilación, las pruebas y la ejecución de Fishi.
+Los identificadores internos de los paquetes API y web siguen siendo `@inboxeye/api` y `@inboxeye/web`; los comandos de la raíz los encapsulan.
 
 Fuera de alcance: agentes autónomos, herramientas ejecutadas por LLM, envío de correos, OAuth, scraping de bandeja, adjuntos, reputación externa, DB, login, publicación de extensión y hosting. No hay métricas de detección medidas ni garantía de seguridad.
