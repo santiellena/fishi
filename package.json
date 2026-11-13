@@ -8,7 +8,7 @@
   "scripts": {
     "dev:api": "npm run dev -w @inboxeye/api",
     "dev:web": "npm run dev -w @inboxeye/web",
-    "build": "npm run build -w @inboxeye/api && npm run build -w @inboxeye/web",
-    "test": "npm test -w @inboxeye/api && npm test -w @inboxeye/web"
+    "build": "npm run build -w @inboxeye/api && npm run build -w @inboxeye/web && npm run build -w @fishi/extension",
+    "test": "npm test -w @inboxeye/api && npm test -w @inboxeye/web && npm test -w @fishi/extension"
   }
 }

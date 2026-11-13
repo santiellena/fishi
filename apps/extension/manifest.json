@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Fishi",
+  "version": "0.1.0",
+  "description": "An\u00e1lisis educativo de un correo sint\u00e9tico abierto en Gmail.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:3001/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fishi"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src http://127.0.0.1:3001"
+  }
+}
