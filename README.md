@@ -68,10 +68,10 @@ Pruebas con mocks: reportes benignos/maliciosos, señales, evidencia inventada, 
 
 **No se verificó manualmente la instalación en Chrome/Brave ni Gmail real ni una respuesta real de Claude.** Ver [docs/demo.md](docs/demo.md) para el ensayo pendiente y sus negativas. Las pruebas DOM usan estructura artificial, no una captura de Gmail. No confundir estas pruebas con compatibilidad comprobada contra Gmail actual.
 
-## Reutilización y alcance
+## Arquitectura y alcance
 
-Se conservan npm workspaces, TypeScript, React/Vite, Express, Zod, Vitest, el cliente LLM, las rutas y el store adaptados; también layout oscuro, iconos, bandeja, selección y secuencia de polling de la web. Los nombres internos `@inboxeye/api` y `@inboxeye/web` se mantienen para evitar una migración innecesaria de workspaces; la marca visible es Fishi.
+Fishi es un proyecto independiente organizado en npm workspaces: API Express con TypeScript y Zod, interfaz React/Vite y extensión Manifest V3. La API centraliza el cliente de Claude, el analizador y el historial en memoria; ambas interfaces consumen el mismo contrato. Vitest cubre los tres workspaces con mocks.
 
-El código y las pruebas del producto anterior se trasladaron a `archive/inboxeye/`, fuera de compilación, ejecución e imports activos. Son material histórico sin garantía de ejecución independiente. Los documentos históricos de la raíz y `CLAUDE.md` describen el producto anterior; el funcionamiento vigente se documenta aquí.
+Los identificadores internos de los paquetes API y web siguen siendo `@inboxeye/api` y `@inboxeye/web`; los comandos de la raíz los encapsulan. El material de `archive/inboxeye/` está excluido de la compilación, las pruebas y la ejecución de Fishi.
 
 Fuera de alcance: agentes autónomos, herramientas ejecutadas por LLM, envío de correos, OAuth, scraping de bandeja, adjuntos, reputación externa, DB, login, publicación de extensión y hosting. No hay métricas de detección medidas ni garantía de seguridad.
