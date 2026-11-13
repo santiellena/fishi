@@ -68,6 +68,30 @@ describe("API", () => {
    expect((await fetch(base + "/runs/missing")).status).toBe(404);
   });
  });
+ it("limita concurrencia y frecuencia sin nuevas llamadas al modelo", async () => {
+  const llm = { complete: vi.fn(() => new Promise<LLMResponse>(() => {})) };
+  await withApi(llm, async base => {
+   const body = { emailId: "email-001" };
+   expect((await post(base, "/runs", body)).status).toBe(202);
+   expect((await post(base, "/runs", body)).status).toBe(202);
+   expect((await post(base, "/runs", body)).status).toBe(429);
+   expect(llm.complete).toHaveBeenCalledTimes(2);
+  });
+  await withApi(mock(), async base => {
+   for (let n = 0; n < 12; n++) expect((await post(base, "/runs", {})).status).toBe(400);
+   expect((await post(base, "/runs", { emailId: "email-001" })).status).toBe(429);
+  });
+ });
+ it("rechaza JSON roto, payload excesivo, links excesivos y esquemas ajenos", async () => {
+  await withApi(mock(), async base => {
+   for (const text of ["{", JSON.stringify({ email: { from: "a", subject: "b", textBody: "x".repeat(66000) } })]) {
+    expect((await fetch(base + "/runs/adhoc", { method: "POST", headers: { "Content-Type": "application/json" }, body: text })).status).toBe(400);
+   }
+   const email = { from: "a", subject: "b", textBody: "Prueba", links: Array(31).fill("https://test.example") };
+   expect((await post(base, "/runs/adhoc", { email })).status).toBe(400);
+   expect((await post(base, "/runs/adhoc", { email: { ...email, links: [], secret: "no" } })).status).toBe(400);
+  });
+ });
  it("fallos y timeout terminan FAILED sin filtrar excepciones", async () => {
   for (const llm of [mock({}), { complete: async () => { throw Error("secret body"); } }, { complete: () => new Promise<LLMResponse>(() => {}) }]) await withApi(llm, async base => {
    const { runId } = await (await post(base, "/runs", { emailId: "email-001" })).json();

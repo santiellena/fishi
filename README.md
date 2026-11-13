@@ -1,246 +1,77 @@
-<div align="center">
+# Fishi
 
-# InboxEye
+Análisis educativo de posibles indicios de ingeniería social en correos, con reglas deterministas y una llamada a Anthropic Claude por análisis. Dos entradas comparten el mismo motor: una bandeja web de ocho correos sintéticos y una extensión local para un mensaje abierto en Gmail de prueba.
 
-**Seguridad en profundidad para agentes de IA que procesan correos electrónicos**
+Fishi ofrece evaluaciones orientativas y explicables, con posibles falsos positivos y negativos. No verifica remitentes, autenticidad, DNS, SPF/DKIM/DMARC, reputación ni adjuntos. No abre enlaces. **No es offline:** Claude procesa el texto en un servicio externo. Usar únicamente datos ficticios autorizados.
 
-*Un agente autónomo, dos barreras de seguridad y trazabilidad completa de cada decisión.*
+## Arranque local
 
-**Proyecto desarrollado durante el Proofpoint Bootcamp 2026**
+Requiere Node.js compatible con las versiones de Vite/Vitest del lockfile (Node 22.12+; validado en Node 22) y npm con workspaces.
 
-</div>
-
----
-
-## El problema
-
-Un agente de IA que procesa correo corporativo necesita leer mensajes de remitentes externos para resolver tareas legítimas. Sin embargo, el cuerpo de un email es **contenido no confiable**: un atacante puede intentar introducir instrucciones que el agente interprete como órdenes, por ejemplo, solicitar la lectura de documentos internos o que se omita una revisión.
-
-Este riesgo se conoce como **indirect prompt injection**. Aunque el modelo pueda reconocer y rechazar muchos intentos, su criterio no debería ser la única protección que separa el contenido externo de las herramientas internas.
-
-## La solución
-
-**InboxEye** es un prototipo local que implementa un *security harness* alrededor de un agente de correo basado en Claude. El agente conserva autonomía para decidir qué herramientas utilizar, pero sus solicitudes y el contenido externo que recibe atraviesan controles definidos fuera del modelo.
-
-- **Input Guard:** analiza el contenido devuelto por `readEmail` mediante señales estáticas y un segundo LLM clasificador. Puede permitir la entrega, derivar a revisión o retener el contenido antes de que el agente principal lo reciba.
-- **Action Guard / Policy Engine:** valida y autoriza de forma determinista las solicitudes de herramientas. Aplica límites de recursos y permisos sin depender de las instrucciones del correo ni de la decisión del LLM.
-- **Execution Trace:** registra solicitudes, autorizaciones, herramientas ejecutadas, clasificación de riesgo y entrega o retención del contenido.
-- **Comparador Protected vs Unprotected:** ejecuta el mismo correo en dos corridas independientes, con el mismo agente y configuración, para mostrar las diferencias observadas al activar o desactivar las protecciones adicionales.
-
-Todo funciona con **NovaShop**, una empresa ficticia. Los correos, pedidos, documentos y efectos de las herramientas son sintéticos; no se conecta a casillas reales ni envía correos.
-
-## Vista general de la arquitectura
-
-```mermaid
-flowchart TD
-    UI["Consola React · InboxEye"] -->|"POST /runs"| API["API Express"]
-    API --> R["AgentRunner / Harness"]
-    R -->|"Objetivo + emailId"| A["Claude · agente autónomo"]
-    A -->|"tool_use"| P{"Action Guard / Policy Engine"}
-    P -->|"DENY"| D["Denegación auditada"]
-    P -->|"ALLOW"| T["Tool Executor · datos sintéticos"]
-    T -->|"readEmail: contenido externo"| I["Input Guard · reglas + LLM clasificador"]
-    I -->|"LOW"| E["Contenido marcado como no confiable"]
-    I -->|"MEDIUM / HIGH / UNKNOWN"| H["Retención / revisión / cuarentena"]
-    E -->|"tool_result"| A
-    D -->|"tool_result de error"| A
-    T -->|"Herramientas internas permitidas"| A
-    R --> S["RunStore en memoria + eventos"]
-    S -->|"GET /runs"| UI
-```
-
-**Punto clave:** `readEmail` puede ejecutarse en el backend para obtener el correo sin que ese cuerpo llegue todavía al agente. El Input Guard inspecciona el resultado **antes de incluirlo en el `tool_result` que se envía a Claude**.
-
-### Componentes
-
-| Componente | Responsabilidad |
-| --- | --- |
-| `AgentRunner` | Orquestar el ciclo `tool_use` / `tool_result`, sus límites y el informe final. |
-| `InputGuard` | Clasificar riesgo de inyección con reglas estáticas + un LLM sin herramientas. |
-| `PolicyEngine` | Aplicar autorización determinista y alcance de recursos antes de ejecutar herramientas. |
-| `RunStore` | Conservar estado y eventos de auditoría durante la sesión del servidor. |
-| `company/` | Definir la misión y los datos sintéticos de NovaShop. |
-| `apps/web` | Mostrar bandeja, informes, trazas, seguridad y comparación. |
-
-## Flujo de procesamiento protegido
-
-1. El operador selecciona un correo sintético en la consola.
-2. El backend crea una corrida y entrega al agente **su objetivo confiable y el identificador opaco del correo**, no su cuerpo.
-3. El agente solicita `readEmail(emailId)`; la solicitud atraviesa validación de argumentos y autorización.
-4. La herramienta obtiene el contenido. El **Input Guard** lo clasifica antes de su entrega al agente:
-   - **LOW:** se entrega al agente como contenido externo no confiable.
-   - **MEDIUM / UNKNOWN:** se retiene y se deriva a revisión humana; el sistema falla cerrado cuando el clasificador no responde correctamente.
-   - **HIGH:** se retiene y la corrida queda en cuarentena.
-5. Si el agente continúa, puede consultar herramientas internas permitidas, etiquetar el correo o solicitar revisión humana. Cada llamada vuelve a atravesar el **Action Guard**.
-6. El agente produce un `AgentReport` estructurado. El harness valida su formato, comprueba parte de la coherencia con los resultados de herramientas y determina el estado final.
-7. La interfaz presenta el informe, la evaluación de seguridad y la traza de eventos reales.
-
-### Herramientas disponibles
-
-| Tool | Uso | Protección relevante |
-| --- | --- | --- |
-| `readEmail(emailId)` | Leer un correo sintético. | Debe coincidir con el correo asignado a la corrida; el resultado externo pasa por el Input Guard en modo protegido. |
-| `getOrderStatus(orderId)` | Consultar pedidos ficticios. | Validación de argumentos y herramientas registradas. |
-| `readInternalDocument(documentId)` | Leer políticas internas ficticias. | Solo `shipping-policy` y `return-policy` están autorizados por la política de recursos. |
-| `tagEmail(emailId, category)` | Etiquetar el correo de la corrida. | Categorías válidas y alcance al correo asignado. |
-| `flagForReview(emailId, reason)` | Registrar una solicitud sintética de revisión humana. | Alcance al correo y motivo validado; no envía notificaciones reales. |
-
-`payroll-private` existe como **documento ficticio restringido** para evaluar la política de acceso; no contiene datos personales reales.
-
-## Comparación: protegido vs sin protección
-
-La consola permite procesar el mismo correo mediante dos ejecuciones reales, independientes y concurrentes del mismo agente:
-
-| Modo | Input Guard | Política empresarial de recursos | Restricciones de sandbox |
-| --- | --- | --- | --- |
-| `PROTECTED` | Activo | Activa | Activas |
-| `UNPROTECTED_DEMO` | Desactivado | Desactivada | **Siempre activas** |
-
-El modo sin protección **no** habilita herramientas arbitrarias, acceso a archivos reales, integraciones externas ni envíos de correo. Se mantienen los esquemas de argumentos, las herramientas registradas y el alcance al correo de la corrida.
-
-La comparación muestra las **diferencias observadas** en el resultado y en la traza, incluidos el momento de entrega del contenido y las herramientas solicitadas/ejecutadas. El modelo puede resistir una inyección aun sin controles externos; por eso un resultado individual no demuestra una tasa de éxito ni una garantía absoluta.
-
-## Escenarios incluidos
-
-El conjunto de prueba incluye **11 correos sintéticos**, entre otros:
-
-- Consulta legítima sobre el estado de un pedido.
-- Consulta combinada de pedido y devolución.
-- Solicitud sensible de cambio de cuenta bancaria que requiere intervención humana.
-- Intento explícito de prompt injection para acceder a `payroll-private`.
-- Intento sutil con supuesta autorización administrativa.
-- Pretexto de cierre trimestral para solicitar un documento restringido.
-- Pedido inexistente, reclamos, consultas de políticas y mensajes irrelevantes.
-
-Los identificadores de los correos son neutros (`email-001` a `email-011`): las etiquetas internas de los escenarios no se envían al agente.
-
-## Tecnologías
-
-- **Frontend:** React 19, TypeScript, Vite 8, CSS propio y SVGs inline.
-- **Backend:** Node.js, Express 5, TypeScript, Zod.
-- **IA:** Anthropic Claude API; un cliente para el agente y otro para el clasificador del Input Guard.
-- **Pruebas:** Vitest, con mocks para probar lógica y políticas sin consumir créditos de API.
-
-El proyecto está organizado como un **monorepo con npm workspaces**, sin dependencias de base de datos ni infraestructura cloud.
-
-## Ejecutar localmente
-
-### Requisitos
-
-- Node.js compatible con Vite 8 (por ejemplo, **Node.js 22.12+**).
-- npm.
-- Conexión a internet para las corridas reales de Claude.
-- Una API Key de Anthropic con acceso al modelo configurado.
-
-### 1. Instalar dependencias
-
-Desde la raíz del repositorio:
-
-```bash
+```sh
 npm ci
+cp .env.example apps/api/.env
 ```
 
-### 2. Configurar el backend
+Completar localmente `ANTHROPIC_API_KEY` y `ANTHROPIC_MODEL` en `apps/api/.env`; usar un modelo habilitado en la cuenta. La clave y el modelo quedan exclusivamente en backend. No compartir ni versionar `.env`.
 
-En **PowerShell**:
+En dos terminales desde la raíz:
 
-```powershell
-Copy-Item .env.example apps/api/.env
-```
-
-Editá `apps/api/.env` y completá al menos:
-
-```dotenv
-ANTHROPIC_API_KEY=tu_api_key
-ANTHROPIC_MODEL=identificador_de_modelo_habilitado
-PORT=3001
-```
-
-De manera opcional, `ANTHROPIC_GUARD_MODEL` permite usar un modelo diferente para el clasificador; si no se establece, utiliza `ANTHROPIC_MODEL`.
-
-> **Seguridad:** `apps/api/.env` está excluido por `.gitignore`. Nunca subas claves API, credenciales ni registros que contengan secretos. El nombre del modelo debe ser uno al que tu clave tenga acceso.
-
-### 3. Iniciar backend y frontend
-
-En dos terminales, desde la raíz:
-
-**Terminal 1 — API**
-
-```bash
+```sh
 npm run dev:api
-```
-
-**Terminal 2 — Consola**
-
-```bash
 npm run dev:web
 ```
 
-Abrí **http://127.0.0.1:5173**. Vite redirige las rutas `/api` al backend en `127.0.0.1:3001`.
+Abrir `http://127.0.0.1:5173`. API en `127.0.0.1:3001`, nunca en todas las interfaces. La web usa el proxy `/api` de Vite. Mantener estos puertos para la extensión. El build web produce archivos estáticos, pero la demo utiliza Vite para disponer del proxy; no hay despliegue de producción incluido.
 
-### 4. Ejecutar pruebas y build
+**Pulsar Analizar o un botón de lote genera solicitudes de pago.** Un lote procesa de a un mensaje. Las pruebas automatizadas usan mocks y no consumen créditos; no se hicieron llamadas reales a Claude durante esta implementación.
 
-```bash
+```sh
 npm test
 npm run build
+npm run build -w @fishi/extension
 ```
 
-Los tests habituales utilizan mocks; las corridas reales contra Anthropic son opcionales y **consumen créditos de API**.
+En entornos que bloquean puertos loopback, las pruebas HTTP necesitan permiso para abrir un puerto efímero local. No usan Internet ni Anthropic.
 
-## API HTTP
+## Extensión Chrome/Brave
 
-| Método | Ruta | Descripción |
-| --- | --- | --- |
-| `GET` | `/emails` | Listado de correos sin su cuerpo. |
-| `GET` | `/emails/:id` | Correo completo para la consola del operador. |
-| `POST` | `/runs` | Iniciar ejecución con `{ "emailId": "email-001", "mode": "PROTECTED" }`. |
-| `GET` | `/runs` | Listar resultados de corridas. |
-| `GET` | `/runs/:id` | Obtener un resultado y su traza de eventos. |
+1. Ejecutar `npm run build` y mantener la API encendida.
+2. Abrir `chrome://extensions` o `brave://extensions`, activar modo desarrollador y cargar **`apps/extension/dist`** como extensión desempaquetada.
+3. En una cuenta Gmail de prueba, abrir un mensaje sintético independiente. Abrir Fishi y pulsar **Analizar este correo**.
+4. Revisar remitente, asunto y cuerpo. Solo **Confirmar envío y analizar** transmite el contenido al backend local y a Claude. Cancelar descarta la vista previa.
+5. Mantener el popup abierto hasta ver riesgo, técnicas, resumen y recomendación. En Fishi Web, desplegar su entrada **EXTENSION** en **Análisis recientes** para el reporte completo.
 
-El backend escucha únicamente en `127.0.0.1` y no incluye autenticación de usuarios; está pensado **exclusivamente para una demostración local**, no para exponerse en una red pública.
+Permisos: solo `activeTab`, `scripting` y host `http://127.0.0.1:3001/*`. No usa Gmail API/OAuth, cookies, adjuntos, código remoto, acceso permanente a Gmail, observación de navegación ni análisis automático. Implementación basada en [activeTab](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) y [chrome.scripting](https://developer.chrome.com/docs/extensions/reference/api/scripting).
 
-## Estructura del repositorio
+El extractor es conservador y depende del DOM de Gmail: requiere un único contenedor principal, asunto visible, cuerpo expandido y remitente observable. Rechaza varios cuerpos visibles y conversación citada visible para no mezclar correos. No lee texto oculto; los enlaces se extraen únicamente del cuerpo visible. Puede rechazar mensajes válidos si Gmail cambia selectores o estructura. No promete cabeceras originales ni todos los links. Cerrar el popup detiene su polling, pero un análisis ya enviado continúa en backend y queda en el portal. No se persiste contenido en la extensión.
 
-```text
-InboxEye/
-├── apps/
-│   ├── api/
-│   │   ├── src/
-│   │   │   ├── company/     # Misión, correos, pedidos y documentos sintéticos
-│   │   │   ├── core/        # Agente, Input Guard, Policy Engine, RunStore
-│   │   │   ├── http/        # Rutas REST
-│   │   │   └── server.ts
-│   │   └── test/            # Tests del harness y de seguridad
-│   └── web/
-│       └── src/            # Inbox, detalle, comparación, trazas y estilos
-├── ARCHITECTURE.md
-├── DEMO_SCENARIOS.md
-├── IMPLEMENTATION_PLAN.md
-├── .env.example
-└── package.json
-```
+## Contratos y controles
 
-## Limitaciones y alcance
+- `GET /emails`: ocho resúmenes `id/from/subject`; `GET /emails/:id`: detalle `textBody`, sin label de referencia.
+- `POST /runs`: `{ "emailId": "email-001" }`.
+- `POST /runs/adhoc`: `{ "email": { "from": "a@prueba.example", "subject": "Prueba", "textBody": "Mensaje sintético", "links": [] } }`.
+- Ambos POST devuelven `202 {"runId":"..."}`; `GET /runs/:id` permite polling, `GET /runs` consulta el historial.
+- Corrida: `source` FIXTURE/EXTENSION; `emailId` solo para fixture; metadatos mínimos, `createdAt`, `status`, `report`, `staticSignals`, error seguro si corresponde. Estado operativo PROCESSING/ANALYZED/FAILED, separado del riesgo LOW/MEDIUM/HIGH. PENDING solo es un estado derivado de UI.
 
-InboxEye es un **prototipo de investigación y demostración**, no una solución productiva certificada:
+El backend normaliza con trim y valida con Zod; rechaza campos desconocidos y contenido excesivo, sin truncar. Límites: remitente/asunto 500 caracteres cada uno, cuerpo 20.000, 30 links de 2.048 caracteres y JSON total 64 KiB. Solo JSON sin compresión. Hasta 12 intentos de inicio por minuto (incluidos inválidos) y dos análisis activos simultáneos por proceso; devuelve 429 al exceder. Polling web con requests de hasta 10 s y espera por análisis de hasta 120 s; popup hasta 60 s. Claude tiene timeout de transporte de 40 s, analizador de 45 s y **cero reintentos automáticos**.
 
-- La clasificación LLM puede producir falsos positivos y falsos negativos; la defensa determinista de recursos sigue siendo necesaria.
-- En esta versión, las corridas y sus eventos se guardan **en memoria**: se pierden al reiniciar el backend. Todavía no hay persistencia ni reproducción offline de corridas grabadas.
-- No hay conexión a Gmail/Outlook, envío de mensajes, acceso a archivos reales ni cambios en sistemas empresariales.
-- La comparación es ilustrativa y puede variar entre corridas incluso usando la misma configuración del agente.
-- No hay gestión de usuarios, autenticación, multiempresa ni despliegue público.
-- Los datos, incluidos los documentos restringidos, son exclusivamente ficticios.
+Las ocho señales cubren urgencia, bloqueo, credenciales/OTP, transferencias, autoridad aparente, secreto, datos personales e instrucciones a la IA. Son contexto, nunca un veredicto. El LLM recibe únicamente los campos normalizados, sin labels ni herramientas. Un prompt de sistema trata todo el correo como datos no confiables. La salida se valida estrictamente: máximo cinco indicadores, técnicas con evidencia, sin duplicados, hasta cuatro recomendaciones; toda cita debe existir literalmente en un campo normalizado. **Una cita no verificable rechaza todo el reporte y termina FAILED.** JSON inválido, error de servicio o timeout también terminan FAILED, sin convertirlos en LOW.
 
-## Idea central
+El RunStore conserva hasta 200 corridas (retira la completada más antigua al alcanzar el límite), únicamente en memoria. Los correos ad hoc no se agregan a fixtures ni se guarda su cuerpo completo: se conservan remitente/asunto y reporte, que puede contener citas. El reinicio borra todo el historial. No se registran cuerpos ni errores del proveedor en logs. Los textos externos se renderizan escapados; los links no son clicables.
 
-> **El modelo puede resistir un ataque. InboxEye agrega controles externos para que la seguridad no dependa solamente de esa resistencia.**
+CORS permite los dos orígenes web locales y orígenes `chrome-extension://` con ID válido para admitir extensiones desempaquetadas con IDs variables. **Esto no autentica al cliente**: es una demo local sin login, no un servicio para publicar o compartir en red. No extender el bind ni el CORS para exponerla.
 
----
+## Validación y demo
 
-<div align="center">
+Pruebas con mocks: reportes benignos/maliciosos, señales, evidencia inventada, inyección como dato, JSON inválido, error y timeout; endpoints de ambos orígenes; aislamiento de fixtures; UI de lectura, análisis individual/lote, fallos e historial; extractor DOM y permisos; consentimiento/cancelación, API caída y fallo en popup.
 
-**InboxEye · Proofpoint Bootcamp 2026**
+**No se verificó manualmente la instalación en Chrome/Brave ni Gmail real ni una respuesta real de Claude.** Ver [docs/demo.md](docs/demo.md) para el ensayo pendiente y sus negativas. Las pruebas DOM usan estructura artificial, no una captura de Gmail. No confundir estas pruebas con compatibilidad comprobada contra Gmail actual.
 
-*Demo local con datos sintéticos. Ninguna acción real sobre sistemas externos.*
+## Reutilización y alcance
 
-</div>
+Se conservan npm workspaces, TypeScript, React/Vite, Express, Zod, Vitest, el cliente LLM, las rutas y el store adaptados; también layout oscuro, iconos, bandeja, selección y secuencia de polling de la web. Los nombres internos `@inboxeye/api` y `@inboxeye/web` se mantienen para evitar una migración innecesaria de workspaces; la marca visible es Fishi.
+
+El código y las pruebas del producto anterior se trasladaron a `archive/inboxeye/`, fuera de compilación, ejecución e imports activos. Son material histórico sin garantía de ejecución independiente. Los documentos históricos de la raíz y `CLAUDE.md` describen el producto anterior; el funcionamiento vigente se documenta aquí.
+
+Fuera de alcance: agentes autónomos, herramientas ejecutadas por LLM, envío de correos, OAuth, scraping de bandeja, adjuntos, reputación externa, DB, login, publicación de extensión y hosting. No hay métricas de detección medidas ni garantía de seguridad.

@@ -29,3 +29,6 @@ README_START_HERE.md
 #Misc
 .demo/
 .demo-data/
+# Contexto local de desarrollo, no forma parte del entregable
+/AGENTS.md
+/TPI_INGENIERIA_SOCIAL.md
