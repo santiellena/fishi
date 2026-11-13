@@ -106,13 +106,7 @@ export function Icon({ name, size = 18, className }: { name: IconName; size?: nu
   );
 }
 
-/** Marca de InboxEye: un ojo dentro de un escudo (inspecciona lo que entra, protege al agente). */
+/** Pez de Fishi, SVG local. */
 export function BrandMark({ size = 30 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false">
-      <path d="M16 3 5.5 7v8.500C5.5 21.5 9.5 26 16 29c6.5-3 10.5-7.5 10.5-13.500V7L16 3Z" fill="var(--surface-2)" stroke="var(--info)" strokeWidth="1.6" />
-      <path d="M9.5 16.200S12 11.8 16 11.800s6.5 4.4 6.5 4.400S20 20.6 16 20.6 9.5 16.2 9.5 16.200Z" stroke="var(--text)" strokeWidth="1.5" strokeLinejoin="round" />
-      <circle cx="16" cy="16.2" r="2.2" fill="var(--info)" />
-    </svg>
-  );
+ return <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true"><path d="M4 16 1 7l9 4c8-9 18-3 21 5-3 8-13 14-21 5l-9 4Z" fill="var(--surface-2)" stroke="var(--info)" strokeWidth="1.6"/><circle cx="24" cy="14" r="2" fill="var(--text)"/></svg>;
 }

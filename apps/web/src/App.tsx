@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchEmail, fetchEmails, fetchRun, fetchRuns, startRun } from "./api";
-import { Detail } from "./Detail";
+import { Detail, Report } from "./Detail";
 import { BrandMark, Icon } from "./Icons";
 import { Inbox } from "./Inbox";
-import { comparisonPair, countByStatus, latestRunByEmail, statusOf } from "./lib";
+import { countByStatus, latestRunByEmail, statusOf, sequential } from "./lib";
 import type { EmailDetail, EmailSummary, ProcessingResult } from "./types";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -21,7 +21,6 @@ export default function App() {
   const refreshRuns = useCallback(async () => {
     try {
       setRuns(await fetchRuns());
-      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "error de red");
     }
@@ -37,13 +36,11 @@ export default function App() {
     void refreshRuns();
   }, [refreshRuns]);
 
-  // Polling simple (sin websockets) mientras haya corridas en curso.
-  const active = runs.some((r) => r.status === "PROCESSING");
+  // También descubre nuevas corridas de la extensión; cada request tiene timeout.
   useEffect(() => {
-    if (!active) return;
-    const t = setInterval(() => void refreshRuns(), 1000);
+    const t = setInterval(() => void refreshRuns(), 3000);
     return () => clearInterval(t);
-  }, [active, refreshRuns]);
+  }, [refreshRuns]);
 
   useEffect(() => {
     if (!viewedId) return;
@@ -76,36 +73,17 @@ export default function App() {
       setBusy(true);
       setError(null);
       try {
-        for (const id of ids) {
+        await sequential(ids, async (id) => {
           const runId = await startRun(id);
           await refreshRuns();
           await waitRun(runId, id);
           await refreshRuns();
-        }
+        });
       } catch (e) {
         setError(e instanceof Error ? e.message : "error al procesar");
       } finally {
         setBusy(false);
-        await refreshRuns();
-      }
-    },
-    [refreshRuns, waitRun],
-  );
-
-  // Comparación: dos corridas reales e independientes del mismo correo (protegida y sin protección).
-  const compare = useCallback(
-    async (id: string) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const [protectedId, unprotectedId] = await Promise.all([startRun(id, "PROTECTED"), startRun(id, "UNPROTECTED_DEMO")]);
-        await refreshRuns();
-        await Promise.all([waitRun(protectedId, id), waitRun(unprotectedId, id)]);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "error al comparar");
-      } finally {
-        setBusy(false);
-        await refreshRuns();
+        void refreshRuns();
       }
     },
     [refreshRuns, waitRun],
@@ -129,11 +107,11 @@ export default function App() {
         <div className="brand">
           <BrandMark />
           <div>
-            <h1>InboxEye</h1>
-            <p className="brand-sub">Seguridad para agentes que procesan correo</p>
+            <h1>Fishi</h1>
+            <p className="brand-sub">Análisis de ingeniería social en correos, con IA</p>
           </div>
         </div>
-        <span className="sandbox-pill" title="Correos, herramientas y datos simulados. No se envía nada real.">
+        <span className="sandbox-pill" title="Solo correos sintéticos autorizados">
           <Icon name="shield" size={14} />
           Entorno de pruebas con datos sintéticos
         </span>
@@ -143,6 +121,7 @@ export default function App() {
           {error}
         </div>
       )}
+      <p className="privacy">El contenido se envía al servicio local Fishi y a Anthropic Claude al pulsar Analizar, incluso en lote. Usar solo datos sintéticos autorizados. No muerdas el anzuelo: verificá por un canal independiente.</p>
       <main className="layout">
         <Inbox
           emails={emails}
@@ -166,14 +145,17 @@ export default function App() {
               subject={viewed.subject}
               from={viewed.from}
               run={latest.get(viewed.id)}
-              pair={comparisonPair(runs, viewed.id)}
               busy={busy}
               onProcess={() => void process([viewed.id])}
-              onCompare={() => void compare(viewed.id)}
             />
           ) : (
             <p className="muted">Elegí un correo de la bandeja.</p>
           )}
+          <section className="recent panel"><header className="panel-head"><h2>Análisis recientes</h2><button className="btn" onClick={() => void refreshRuns()}>Actualizar</button></header>
+            <p className="hint">Historial en memoria; se pierde al reiniciar la API.</p>
+            {[...runs].reverse().map(run => <details key={run.runId}><summary>{run.source === "EXTENSION" ? "EXTENSION · Gmail de prueba" : "FIXTURE · Bandeja"} — {run.emailPreview.subject} · {run.status}</summary><p>{run.emailPreview.from}</p><Report run={run} /></details>)}
+            {!runs.length && <p>Sin análisis todavía.</p>}
+          </section>
         </section>
       </main>
     </div>

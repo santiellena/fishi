@@ -1,0 +1,36 @@
+// @vitest-environment jsdom
+import { afterEach, it, expect, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import App from './App';
+import { Report } from './Detail';
+import * as api from './api';
+import type { ProcessingResult } from './types';
+vi.mock('./api', () => ({ fetchEmails: vi.fn(), fetchEmail: vi.fn(), fetchRuns: vi.fn(), fetchRun: vi.fn(), startRun: vi.fn() }));
+afterEach(() => { cleanup(); vi.resetAllMocks(); });
+const run: ProcessingResult = { runId: '1', emailId: 'email-001', source: 'FIXTURE', createdAt: 'now', emailPreview: { from: 'a@test.example', subject: 'Hola' }, status: 'ANALYZED', staticSignals: [], report: { risk: 'LOW', summary: 'Sin indicios concretos.', techniques: [], indicators: [], recommendations: ['Verificar por un canal conocido.'] } };
+it('bandeja, lectura, análisis individual e historial de extensión escapado', async () => {
+ const email = { id: 'email-001', from: 'a@test.example', subject: 'Hola' };
+ vi.mocked(api.fetchEmails).mockResolvedValue([email]); vi.mocked(api.fetchEmail).mockResolvedValue({ ...email, textBody: '<script>ataque</script>' });
+ vi.mocked(api.fetchRuns).mockResolvedValue([{ ...run, source: 'EXTENSION', emailId: undefined, emailPreview: { from: 'a@test.example', subject: '<img src=x onerror=alert(1)>' } }]);
+ vi.mocked(api.startRun).mockResolvedValue('1'); vi.mocked(api.fetchRun).mockResolvedValue(run);
+ const { container } = render(<App />);
+ await screen.findByText('<script>ataque</script>'); expect(container.querySelector('script')).toBeNull(); expect(container.querySelector('img')).toBeNull();
+ expect(screen.getByText(/EXTENSION · Gmail de prueba/)).toBeTruthy();
+ await userEvent.click(screen.getByRole('button', { name: /^Analizar$/ }));
+ await waitFor(() => expect(api.startRun).toHaveBeenCalledWith('email-001')); expect(api.fetchRun).toHaveBeenCalledWith('1');
+});
+it('selección inicia un lote secuencial de fixtures', async () => {
+ const emails = [1, 2].map(n => ({ id: `email-00${n}`, from: 'a@test.example', subject: `Caso ${n}` }));
+ vi.mocked(api.fetchEmails).mockResolvedValue(emails); vi.mocked(api.fetchEmail).mockResolvedValue({ ...emails[0]!, textBody: 'Texto' }); vi.mocked(api.fetchRuns).mockResolvedValue([]);
+ const order: string[] = [];
+ vi.mocked(api.startRun).mockImplementation(async id => { order.push('start:' + id); return id; });
+ vi.mocked(api.fetchRun).mockImplementation(async id => { order.push('end:' + id); return { ...run, runId: id }; });
+ render(<App />); await screen.findByText('Caso 2'); await userEvent.click(screen.getByLabelText('Seleccionar todos'));
+ await userEvent.click(screen.getByRole('button', { name: /Analizar seleccionados/ }));
+ await waitFor(() => expect(order).toEqual(['start:email-001', 'end:email-001', 'start:email-002', 'end:email-002']));
+});
+it('un fallo no presenta riesgo bajo', () => {
+ render(<Report run={{ ...run, status: 'FAILED', report: null, error: 'Respuesta inválida.' }} />);
+ expect(screen.getByRole('alert').textContent).toContain('No hay evaluación de riesgo'); expect(screen.queryByText('Riesgo LOW')).toBeNull();
+});

@@ -5,9 +5,7 @@ import type { EmailSummary, ProcessingResult, UiStatus } from "./types";
 const STATUS_ICON: Record<UiStatus, IconName> = {
   PENDING: "clock",
   PROCESSING: "bolt",
-  PROCESSED: "check",
-  NEEDS_REVIEW: "flag",
-  QUARANTINED: "shield",
+  ANALYZED: "check",
   FAILED: "x",
 };
 
@@ -21,7 +19,7 @@ export function StatusBadge({ status }: { status: UiStatus }) {
   );
 }
 
-const ORDER: UiStatus[] = ["PROCESSED", "NEEDS_REVIEW", "QUARANTINED", "FAILED", "PROCESSING", "PENDING"];
+const ORDER: UiStatus[] = ["ANALYZED", "FAILED", "PROCESSING", "PENDING"];
 
 /** Distribución de estados: una barra segmentada y una leyenda solo con lo que hay. */
 function Distribution({ counts, total }: { counts: Record<UiStatus, number>; total: number }) {
@@ -81,14 +79,14 @@ export function Inbox({
     <aside className="rail" aria-label="Bandeja de entrada">
       <div className="rail-head">
         <div className="rail-title">
-          <h2>Bandeja</h2>
+          <h2>Bandeja de demostración</h2>
           <span className="count">{emails.length} correos</span>
         </div>
         <Distribution counts={counts} total={emails.length} />
         <div className="rail-actions">
           <button className="btn btn-primary" onClick={onProcessSelected} disabled={busy || checked.size === 0}>
             <Icon name="play" size={15} />
-            {busy ? "Procesando" : `Procesar seleccionados (${checked.size})`}
+            {busy ? "Analizando" : `Analizar seleccionados (${checked.size})`}
           </button>
           <button
             className="btn"
@@ -96,7 +94,7 @@ export function Inbox({
             disabled={busy || pendingCount === 0}
             title="Procesa de a uno los correos que todavía no tienen corrida"
           >
-            Procesar pendientes ({pendingCount})
+            Analizar pendientes ({pendingCount})
           </button>
         </div>
         <label className="check-all">
