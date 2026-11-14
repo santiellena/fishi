@@ -15,7 +15,7 @@ const messages = {
   INVALID_JSON: "La respuesta de Claude no es un JSON válido. No hay evaluación de riesgo disponible.",
   INVALID_REPORT: "La respuesta de Claude no cumple los campos o las reglas del reporte. No hay evaluación de riesgo disponible.",
   INVALID_RESPONSE: "Claude devolvió una respuesta que no cumple el formato del reporte.",
-  INVALID_EVIDENCE: "El reporte de Claude contiene una cita que no existe en el correo recibido.",
+  INVALID_EVIDENCE: "Claude seleccionó una referencia de evidencia que no pertenece al correo recibido.",
   ANALYSIS_FAILED: "No se pudo completar el análisis. No hay evaluación de riesgo disponible.",
 } as const;
 

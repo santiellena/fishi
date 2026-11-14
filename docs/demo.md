@@ -1,6 +1,6 @@
 # Ensayo de Fishi (3–5 minutos)
 
-Estado: pruebas automatizadas con mocks realizadas. Una llamada real autorizada desde la API al fixture sintético `email-001` terminó ANALYZED en aproximadamente 3,3 segundos, con riesgo LOW, técnicas e indicadores vacíos, una recomendación y reporte validado. Corrida: `d9cbaabd-de1c-4d68-a413-053edae513c8`. Se inició una sola solicitud, sin reintentos; no se registró un costo exacto. El ensayo manual completo Gmail/Chrome/Brave por Codex sigue **pendiente**. El equipo debe completar este ensayo antes de afirmar compatibilidad con Gmail.
+Estado: pruebas automatizadas con mocks realizadas. Una llamada real autorizada desde la API al fixture sintético `email-001` terminó ANALYZED en aproximadamente 3,3 segundos, con riesgo LOW, técnicas e indicadores vacíos, una recomendación y reporte validado. Corrida: `d9cbaabd-de1c-4d68-a413-053edae513c8`. Se inició una sola solicitud, sin reintentos; no se registró un costo exacto. Esta validación real fue anterior al cambio a selección de evidencias por IDs, que se verificó con mocks sin repetir consultas de pago. El ensayo manual completo Gmail/Chrome/Brave por Codex sigue **pendiente**. El equipo debe completar este ensayo antes de afirmar compatibilidad con Gmail.
 
 ## Preparación
 

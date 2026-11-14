@@ -6,7 +6,7 @@ import type { LLMClient, LLMResponse } from "../src/core/llm.js";
 import { createApp } from "../src/http/routes.js";
 import { RunStore } from "../src/core/RunStore.js";
 const benign = { risk: "LOW", summary: "No hay indicios concretos.", techniques: [], indicators: [], recommendations: ["Verificar solicitudes por un canal conocido."] };
-const response = (report: unknown): LLMResponse => ({ content: [{ type: "text", text: JSON.stringify(report), citations: null }], stopReason: "end_turn", usage: { input: 1, output: 1 } });
+const response = (report: unknown): LLMResponse => ({ content: [{ type: "text", text: JSON.stringify(report && typeof report === "object" && "techniques" in report ? Object.fromEntries(Object.entries(report).filter(([key]) => key !== "techniques")) : report), citations: null }], stopReason: "end_turn", usage: { input: 1, output: 1 } });
 const mock = (report: unknown = benign): LLMClient => ({ complete: vi.fn(async () => response(report)) });
 describe("analizador compartido", () => {
  it("acepta un benigno y hace exactamente una llamada sin tools ni labels", async () => {
@@ -17,15 +17,16 @@ describe("analizador compartido", () => {
  });
  it("conserva evidencia verificable y separa señales", async () => {
   const email = EMAILS[1]!;
-  const report = { ...benign, risk: "HIGH", techniques: ["URGENCY"], indicators: [{ technique: "URGENCY", evidence: "30 minutos", explanation: "Presión temporal." }] };
+  const report = { ...benign, risk: "HIGH", techniques: ["URGENCY"], indicators: [{ technique: "URGENCY", evidenceId: "e3", explanation: "Presión temporal." }] };
   const result = await new SocialEngineeringAnalyzer(mock(report)).analyze({ from: email.from, subject: email.subject, textBody: email.textBody });
+  expect(result.report.indicators[0]?.evidence).toBe(email.textBody);
   expect(result.report.risk).toBe("HIGH"); expect(result.staticSignals.length).toBeGreaterThan(1);
  });
- it("rechaza citas inventadas y técnicas sin evidencia", async () => {
-  await expect(new SocialEngineeringAnalyzer(mock({ ...benign, techniques: ["BEC"] })).analyze(EMAILS[0]!)).rejects.toThrow();
-  const report = { ...benign, techniques: ["URGENCY"], indicators: [{ technique: "URGENCY", evidence: "inventado", explanation: "Presión" }] };
+ it("rechaza referencias ajenas y riesgo elevado sin evidencia", async () => {
+  await expect(new SocialEngineeringAnalyzer(mock({ ...benign, risk: "HIGH" })).analyze({ from: EMAILS[0]!.from, subject: EMAILS[0]!.subject, textBody: EMAILS[0]!.textBody })).rejects.toThrow();
+  const report = { ...benign, techniques: ["URGENCY"], indicators: [{ technique: "URGENCY", evidenceId: "e999", explanation: "Presión" }] };
   const { from, subject, textBody } = EMAILS[0]!;
-  await expect(new SocialEngineeringAnalyzer(mock(report)).analyze({ from, subject, textBody })).rejects.toThrow();
+  await expect(new SocialEngineeringAnalyzer(mock(report)).analyze({ from, subject, textBody })).rejects.toMatchObject({ code: "INVALID_EVIDENCE" });
  });
  it("detecta inyección como dato y no habilita herramientas", async () => {
   expect(staticSignals(EMAILS[7]!)).toContain("Instrucciones dirigidas a la IA");
