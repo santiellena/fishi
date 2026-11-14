@@ -10,6 +10,10 @@ const messages = {
   LLM_RATE_LIMIT: "Anthropic aplicó un límite de solicitudes. Esperá antes de reintentar.",
   LLM_REQUEST: "Anthropic rechazó la solicitud. Revisá la configuración y la cuenta del proveedor.",
   LLM_UNAVAILABLE: "Anthropic no está disponible en este momento. Intentá más tarde.",
+  LLM_OUTPUT_TRUNCATED: "Claude alcanzó el límite de salida antes de completar el reporte. No hay evaluación de riesgo disponible.",
+  LLM_REFUSAL: "Claude rechazó procesar esta solicitud. No hay evaluación de riesgo disponible.",
+  INVALID_JSON: "La respuesta de Claude no es un JSON válido. No hay evaluación de riesgo disponible.",
+  INVALID_REPORT: "La respuesta de Claude no cumple los campos o las reglas del reporte. No hay evaluación de riesgo disponible.",
   INVALID_RESPONSE: "Claude devolvió una respuesta que no cumple el formato del reporte.",
   INVALID_EVIDENCE: "El reporte de Claude contiene una cita que no existe en el correo recibido.",
   ANALYSIS_FAILED: "No se pudo completar el análisis. No hay evaluación de riesgo disponible.",
@@ -17,8 +21,13 @@ const messages = {
 
 export type AnalysisErrorCode = keyof typeof messages;
 
+export interface AnalysisDiagnostic {
+  stage: "completion" | "json" | "schema";
+  issues?: Array<{ path: string; code: string }>;
+}
+
 export class AnalysisError extends Error {
-  constructor(readonly code: AnalysisErrorCode) {
+  constructor(readonly code: AnalysisErrorCode, readonly diagnostic?: AnalysisDiagnostic) {
     super(messages[code]);
     this.name = "AnalysisError";
   }
@@ -40,5 +49,5 @@ export function describeAnalysisError(error: unknown) {
     else if (httpStatus !== undefined && httpStatus >= 500) code = "LLM_UNAVAILABLE";
     else code = "LLM_REQUEST";
   }
-  return { code, message: messages[code], ...(httpStatus !== undefined ? { httpStatus } : {}) };
+  return { code, message: messages[code], ...(error instanceof AnalysisError && error.diagnostic ? { diagnostic: error.diagnostic } : {}), ...(httpStatus !== undefined ? { httpStatus } : {}) };
 }

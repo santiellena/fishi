@@ -13,7 +13,7 @@ describe("analizador compartido", () => {
   const llm = mock(); const { from, subject, textBody } = EMAILS[0]!;
   expect((await new SocialEngineeringAnalyzer(llm).analyze({ from, subject, textBody })).report.risk).toBe("LOW");
   expect(llm.complete).toHaveBeenCalledTimes(1);
-  const request = vi.mocked(llm.complete).mock.calls[0]![0]; expect(request.tools).toBeUndefined(); expect(JSON.stringify(request)).not.toContain('"label"');
+  const request = vi.mocked(llm.complete).mock.calls[0]![0]; expect(request.tools).toBeUndefined(); expect(request.outputFormat?.type).toBe("json_schema"); expect(JSON.stringify(request)).not.toContain('"label"');
  });
  it("conserva evidencia verificable y separa señales", async () => {
   const email = EMAILS[1]!;
@@ -38,6 +38,34 @@ describe("analizador compartido", () => {
   for (const llm of [{ complete: async () => ({ ...response(benign), content: [{ type: "text" as const, text: "no json", citations: null }] }) }, { complete: async () => { throw Error("secret"); } }, { complete: () => new Promise<LLMResponse>(() => {}) }]) {
    await expect(new SocialEngineeringAnalyzer(llm, 5).analyze(email)).rejects.toThrow();
   }
+ });
+});
+describe("validación de la respuesta del modelo", () => {
+ const email = { from: "a@prueba.example", subject: "Consulta", textBody: "Mensaje sintético" };
+ const analyze = (result: LLMResponse) => new SocialEngineeringAnalyzer({ complete: async () => result }).analyze(email);
+ it("distingue límite de tokens, rechazo y JSON inválido", async () => {
+  await expect(analyze({ ...response(benign), stopReason: "max_tokens" })).rejects.toMatchObject({ code: "LLM_OUTPUT_TRUNCATED" });
+  await expect(analyze({ ...response(benign), stopReason: "refusal" })).rejects.toMatchObject({ code: "LLM_REFUSAL" });
+  await expect(analyze({ ...response(benign), content: [{ type: "text", text: "not JSON", citations: null }] })).rejects.toMatchObject({ code: "INVALID_JSON" });
+ });
+ it("identifica campos inválidos sin registrar valores ni nombres de campos ajenos", async () => {
+  const result = response({ ...benign, summary: 123, "private-field-name": "private value" });
+  try { await analyze(result); throw Error("Expected rejection"); }
+  catch (error) {
+   expect(error).toMatchObject({ code: "INVALID_REPORT", diagnostic: { stage: "schema", issues: expect.arrayContaining([{ path: "summary", code: "invalid_type" }]) } });
+   expect(JSON.stringify(error)).not.toContain("private-field-name"); expect(JSON.stringify(error)).not.toContain("private value");
+  }
+ });
+ it("acepta texto de reporte acompañado de thinking sin convertirlo en evidencia", async () => {
+  const result = response(benign);
+  result.content.unshift({ type: "thinking", thinking: "synthetic reasoning", signature: "synthetic-signature" });
+  const analyzed = await analyze(result);
+  expect(analyzed.report).toEqual(benign); expect(JSON.stringify(analyzed)).not.toContain("synthetic reasoning");
+ });
+ it("rechaza tool_use incluso si acompaña un JSON válido", async () => {
+  const result = response(benign);
+  result.content.push({ type: "tool_use", id: "synthetic", name: "forbidden", input: {}, caller: { type: "direct" } });
+  await expect(analyze(result)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
  });
 });
 describe("API", () => {

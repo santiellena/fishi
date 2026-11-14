@@ -10,7 +10,7 @@ export const ReportSchema = z.object({
  techniques: z.array(TechniqueSchema).max(8).refine(unique),
  indicators: z.array(z.object({ technique: TechniqueSchema, evidence: text(1000), explanation: text(1000) }).strict()).max(5).refine(unique),
  recommendations: z.array(text(500)).min(1).max(4).refine(unique),
-}).strict().refine(r => r.risk === "LOW" || r.indicators.length > 0, "Un riesgo elevado requiere evidencia").refine(r => r.indicators.every(i => r.techniques.includes(i.technique)) && r.techniques.every(t => r.indicators.some(i => i.technique === t)), "Cada técnica necesita evidencia");
+}).strict().refine(r => r.risk === "LOW" || r.indicators.length > 0, { message: "Un riesgo elevado requiere evidencia", path: ["risk"] }).refine(r => r.indicators.every(i => r.techniques.includes(i.technique)) && r.techniques.every(t => r.indicators.some(i => i.technique === t)), { message: "Cada técnica necesita evidencia", path: ["techniques"] });
 export type AnalysisReport = z.infer<typeof ReportSchema>;
 export interface AnalysisRun {
  runId: string; source: "FIXTURE" | "EXTENSION"; emailId?: string;

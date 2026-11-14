@@ -35,7 +35,7 @@ export function createApp(analyzer: Pick<SocialEngineeringAnalyzer, "analyze">, 
   }).catch((error: unknown) => {
    const failure = describeAnalysisError(error);
    run.status = "FAILED"; run.report = null; run.error = failure.message; run.errorCode = failure.code;
-   console.warn("Fishi analysis_failed", JSON.stringify({ runId: run.runId, code: failure.code, elapsedMs: Date.now() - startedAt, ...(failure.httpStatus !== undefined ? { httpStatus: failure.httpStatus } : {}) }));
+   console.warn("Fishi analysis_failed", JSON.stringify({ runId: run.runId, code: failure.code, ...(failure.diagnostic ? { diagnostic: failure.diagnostic } : {}), elapsedMs: Date.now() - startedAt, ...(failure.httpStatus !== undefined ? { httpStatus: failure.httpStatus } : {}) }));
   });
   return run.runId;
  };

@@ -5,6 +5,7 @@ export interface LLMRequest {
   messages: Anthropic.MessageParam[];
   tools?: Anthropic.Tool[];
   maxTokens: number;
+  outputFormat?: Anthropic.JSONOutputFormat;
 }
 
 export interface LLMResponse {
@@ -34,6 +35,7 @@ export class AnthropicClient implements LLMClient {
       max_tokens: req.maxTokens,
       system: req.system,
       messages: req.messages,
+      ...(req.outputFormat ? { output_config: { format: req.outputFormat } } : {}),
       ...(req.tools?.length
         ? {
             tools: req.tools,
