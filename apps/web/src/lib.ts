@@ -1,4 +1,4 @@
-import type { ProcessingResult, UiStatus } from "./types";
+import type { AnalysisReport, ProcessingResult, UiStatus } from "./types";
 export const STATUS_LABEL: Record<UiStatus, string> = { PENDING: "Pendiente", PROCESSING: "Analizando", ANALYZED: "Analizado", FAILED: "Falló" };
 export function latestRunByEmail(runs: ProcessingResult[]) {
  const map = new Map<string, ProcessingResult>();
@@ -12,4 +12,14 @@ export function countByStatus(ids: string[], latest: Map<string, ProcessingResul
 }
 export async function sequential(ids: string[], analyze: (id: string) => Promise<void>) {
  for (const id of ids) await analyze(id);
+}
+
+export const RISK_LABEL = { LOW: "bajo", MEDIUM: "medio", HIGH: "alto" } as const;
+export const TECHNIQUE_LABEL: Record<AnalysisReport["techniques"][number], string> = {
+ PHISHING: "Phishing", IMPERSONATION: "Suplantación", PRETEXTING: "Pretexto", URGENCY: "Urgencia",
+ AUTHORITY: "Autoridad", CREDENTIAL_REQUEST: "Solicitud de credenciales", BEC: "Fraude empresarial", PROMPT_INJECTION: "Inyección de instrucciones",
+};
+export function runTime(createdAt: string) {
+ const date = new Date(createdAt);
+ return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }

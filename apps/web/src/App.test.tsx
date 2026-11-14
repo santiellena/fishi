@@ -34,3 +34,12 @@ it('un fallo no presenta riesgo bajo', () => {
  render(<Report run={{ ...run, status: 'FAILED', report: null, error: 'Respuesta inválida.' }} />);
  expect(screen.getByRole('alert').textContent).toContain('No hay evaluación de riesgo'); expect(screen.queryByText('Riesgo LOW')).toBeNull();
 });
+it('reporte traduce riesgo y técnicas, conserva evidencia escapada y permite consultar reglas', async () => {
+ const high: ProcessingResult = { ...run, staticSignals: ['Presión temporal'], report: { risk: 'HIGH', summary: 'Indicios de presión.', techniques: ['URGENCY'], indicators: [{ technique: 'URGENCY', evidence: '<img src=x>', explanation: 'Exige actuar hoy.' }], recommendations: ['Confirmá por otro canal.'] } };
+ const { container } = render(<Report run={high} />);
+ expect(screen.getByText('Riesgo alto')).toBeTruthy(); expect(screen.getByText('“<img src=x>”')).toBeTruthy(); expect(container.querySelector('img')).toBeNull();
+ expect(screen.getByRole('heading', { name: 'Qué hacer ahora' })).toBeTruthy();
+ const summary = container.querySelector('.static-panel > summary') as HTMLElement;
+ await userEvent.click(summary); expect(summary.parentElement?.hasAttribute('open')).toBe(true);
+ expect(screen.getByText('Presión temporal')).toBeTruthy();
+});

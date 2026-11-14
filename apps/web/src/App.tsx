@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchEmail, fetchEmails, fetchRun, fetchRuns, startRun } from "./api";
 import { Detail, Report } from "./Detail";
 import { BrandMark, Icon } from "./Icons";
-import { Inbox } from "./Inbox";
-import { countByStatus, latestRunByEmail, statusOf, sequential } from "./lib";
+import { Inbox, StatusBadge } from "./Inbox";
+import { countByStatus, latestRunByEmail, statusOf, sequential, RISK_LABEL, runTime } from "./lib";
 import type { EmailDetail, EmailSummary, ProcessingResult } from "./types";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -121,7 +121,7 @@ export default function App() {
           {error}
         </div>
       )}
-      <p className="privacy">El contenido se envía al servicio local Fishi y a Anthropic Claude al pulsar Analizar, incluso en lote. Usar solo datos sintéticos autorizados. No muerdas el anzuelo: verificá por un canal independiente.</p>
+      <p className="privacy"><Icon name="shield" size={16} /><span><strong>Demo con datos sintéticos.</strong> Al analizar, el correo se envía al servicio local y a Anthropic Claude, también en lote.</span></p>
       <main className="layout">
         <Inbox
           emails={emails}
@@ -151,10 +151,14 @@ export default function App() {
           ) : (
             <p className="muted">Elegí un correo de la bandeja.</p>
           )}
-          <section className="recent panel"><header className="panel-head"><h2>Análisis recientes</h2><button className="btn" onClick={() => void refreshRuns()}>Actualizar</button></header>
-            <p className="hint">Historial en memoria; se pierde al reiniciar la API.</p>
-            {[...runs].reverse().map(run => <details key={run.runId}><summary>{run.source === "EXTENSION" ? "EXTENSION · Gmail de prueba" : "FIXTURE · Bandeja"} — {run.emailPreview.subject} · {run.status}</summary><p>{run.emailPreview.from}</p><Report run={run} /></details>)}
-            {!runs.length && <p>Sin análisis todavía.</p>}
+          <section className="recent" id="recent-analyses" aria-label="Análisis recientes">
+            <header className="recent-head"><div><span className="eyebrow">Ambos orígenes · historial en memoria</span><h2>Análisis recientes <span className="section-count">{runs.length}</span></h2></div><button className="btn" onClick={() => void refreshRuns()}><Icon name="clock" size={14} />Actualizar</button></header>
+            <p className="hint">Incluye la bandeja y la extensión. Se pierde al reiniciar la API.</p>
+            <div className="recent-list">{[...runs].reverse().map(run => <details className="recent-item" id={`run-${run.runId}`} key={run.runId}>
+              <summary><span className="recent-chevron" aria-hidden="true">›</span><span className="recent-copy"><span className="recent-meta"><span className={`source-badge source-${run.source}`}>{run.source === "EXTENSION" ? "EXTENSION · Gmail de prueba" : "FIXTURE · Bandeja"}</span><time dateTime={run.createdAt}>{runTime(run.createdAt)}</time></span><span className="recent-subject">{run.emailPreview.subject}</span><span className="recent-from">{run.emailPreview.from}</span></span><span className="recent-state">{run.status === "ANALYZED" && run.report ? <span className={`risk-badge risk-${run.report.risk}`}>Riesgo {RISK_LABEL[run.report.risk]}</span> : <StatusBadge status={run.status} />}</span></summary>
+              <div className="recent-report"><Report run={run} /></div>
+            </details>)}</div>
+            {!runs.length && <div className="panel recent-empty"><Icon name="clock" size={22} /><p>Tus análisis aparecerán acá.<span>Podés iniciarlos desde la bandeja o la extensión de Gmail.</span></p></div>}
           </section>
         </section>
       </main>

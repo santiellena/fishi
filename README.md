@@ -64,6 +64,8 @@ CORS permite los dos orígenes web locales y orígenes `chrome-extension://` con
 
 ## Validación y demo
 
+La interfaz presenta riesgo y técnicas en español, evidencias y recomendaciones separadas, señales estáticas desplegables e historial compacto por origen. El popup ofrece un resumen breve, explicación desplegable, recomendación y acceso a Análisis recientes en la web. Se revisó visualmente en Chrome headless (web en escritorio y móvil; popup de 410 × 600 con datos sintéticos y API simulada), sin iniciar análisis reales.
+
 Pruebas con mocks: reportes benignos/maliciosos, señales, evidencia inventada, inyección como dato, JSON inválido, error y timeout; endpoints de ambos orígenes; aislamiento de fixtures; UI de lectura, análisis individual/lote, fallos e historial; extractor DOM y permisos; consentimiento/cancelación, API caída y fallo en popup.
 
 **Se verificó una respuesta real de Claude a través de la API con el fixture sintético `email-001`** (corrida `d9cbaabd-de1c-4d68-a413-053edae513c8`, ANALYZED, LOW, sin indicadores ni señales estáticas, aproximadamente 3,3 segundos). Esto confirma el recorrido API → Claude → validación del reporte para ese caso. **La instalación y el recorrido completo en Chrome/Brave con Gmail no fueron verificados manualmente por Codex.** Ver [docs/demo.md](docs/demo.md) para el ensayo pendiente y sus negativas. Las pruebas DOM usan estructura artificial, no una captura de Gmail. No confundir estas pruebas con compatibilidad comprobada contra Gmail actual.

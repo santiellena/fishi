@@ -15,7 +15,7 @@ it('extracción y cancelación nunca transmiten; solo confirmación inicia anál
  document.getElementById('cancel').onclick(); expect(fetchMock).not.toHaveBeenCalled();
  await document.getElementById('extract').onclick(); await document.getElementById('confirm').onclick();
  expect(fetchMock).toHaveBeenCalledTimes(2); expect(fetchMock.mock.calls[0][0]).toBe('http://127.0.0.1:3001/runs/adhoc'); expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ email: input });
- expect(document.getElementById('result').textContent).toContain('Riesgo LOW'); expect(document.querySelector('#result script')).toBeNull();
+ expect(document.getElementById('result').textContent).toContain('Riesgo bajo'); expect(document.querySelector('#result script')).toBeNull();
 });
 it('API caída produce error visible sin riesgo', async () => {
  await setup(vi.fn().mockRejectedValue(new Error('API local no disponible')));
@@ -53,4 +53,15 @@ it('distingue timeout de la API local de un fallo de Claude sin reenviar', async
  expect(document.getElementById('status').textContent).toContain('API local no respondió en 10 segundos');
  expect(document.getElementById('status').textContent).toContain('puede seguir activo');
  expect(fetchMock).toHaveBeenCalledTimes(1); expect(document.getElementById('result').hidden).toBe(true);
+});
+it('presenta riesgo y técnicas en español, recomendación y acceso fijo al reporte completo', async () => {
+ const report = { risk: 'HIGH', techniques: ['URGENCY', 'IMPERSONATION'], summary: 'Explicación sintética completa.', recommendations: ['Confirmá por otro canal.'] };
+ await setup(vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ runId: 'synthetic' }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'ANALYZED', report }) }));
+ await document.getElementById('extract').onclick(); await document.getElementById('confirm').onclick();
+ expect(document.querySelector('.risk-HIGH').textContent).toBe('Riesgo alto');
+ expect(document.querySelector('.techniques').textContent).toContain('Suplantación');
+ expect(document.querySelector('.next-action').textContent).toContain('Confirmá por otro canal.');
+ expect(document.querySelector('.explanation > p').textContent).toBe(report.summary);
+ const link = document.querySelector('.report-link');
+ expect(link.href).toBe('http://127.0.0.1:5173/#recent-analyses'); expect(link.rel).toContain('noopener');
 });
