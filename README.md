@@ -24,7 +24,7 @@ npm run dev:web
 
 Abrir `http://127.0.0.1:5173`. API en `127.0.0.1:3001`, nunca en todas las interfaces. La web usa el proxy `/api` de Vite. Mantener estos puertos para la extensión. El build web produce archivos estáticos, pero la demo utiliza Vite para disponer del proxy; no hay despliegue de producción incluido.
 
-**Pulsar Analizar o un botón de lote genera solicitudes de pago.** Un lote procesa de a un mensaje. Las pruebas automatizadas usan mocks y no consumen créditos; no se hicieron llamadas reales a Claude durante esta implementación.
+**Pulsar Analizar o un botón de lote genera solicitudes de pago.** Un lote procesa de a un mensaje. Las pruebas automatizadas usan mocks y no consumen créditos. Se realizó una llamada real autorizada con el fixture benigno `email-001`: terminó ANALYZED en aproximadamente 3,3 segundos, con riesgo LOW y reporte válido, sin reintentos. No se registró el uso de tokens en la corrida, por lo que no se informa un costo exacto.
 
 ```sh
 npm test
@@ -66,7 +66,7 @@ CORS permite los dos orígenes web locales y orígenes `chrome-extension://` con
 
 Pruebas con mocks: reportes benignos/maliciosos, señales, evidencia inventada, inyección como dato, JSON inválido, error y timeout; endpoints de ambos orígenes; aislamiento de fixtures; UI de lectura, análisis individual/lote, fallos e historial; extractor DOM y permisos; consentimiento/cancelación, API caída y fallo en popup.
 
-**No se verificó manualmente la instalación en Chrome/Brave ni Gmail real ni una respuesta real de Claude.** Ver [docs/demo.md](docs/demo.md) para el ensayo pendiente y sus negativas. Las pruebas DOM usan estructura artificial, no una captura de Gmail. No confundir estas pruebas con compatibilidad comprobada contra Gmail actual.
+**Se verificó una respuesta real de Claude a través de la API con el fixture sintético `email-001`** (corrida `d9cbaabd-de1c-4d68-a413-053edae513c8`, ANALYZED, LOW, sin indicadores ni señales estáticas, aproximadamente 3,3 segundos). Esto confirma el recorrido API → Claude → validación del reporte para ese caso. **La instalación y el recorrido completo en Chrome/Brave con Gmail no fueron verificados manualmente por Codex.** Ver [docs/demo.md](docs/demo.md) para el ensayo pendiente y sus negativas. Las pruebas DOM usan estructura artificial, no una captura de Gmail. No confundir estas pruebas con compatibilidad comprobada contra Gmail actual.
 
 ## Arquitectura y alcance
 
