@@ -21,6 +21,14 @@ it("envía el esquema como output_config.format en una sola solicitud sin herram
   expect(wire.output_config.format.schema.required).toEqual(["risk", "summary", "techniques", "indicators", "recommendations"]);
   expect(wire.output_config.format.schema.additionalProperties).toBe(false);
   expect(wire.output_config.format.schema.properties.risk.enum).toEqual(["LOW", "MEDIUM", "HIGH"]);
+  const properties = wire.output_config.format.schema.properties;
+  for (const field of [properties.summary, properties.indicators.items.properties.evidence, properties.indicators.items.properties.explanation, properties.recommendations.items]) {
+    expect(field.pattern).toBe("\\S");
+    const pattern = new RegExp(field.pattern);
+    for (const empty of ["", " ", "\n\t", "\u00a0"]) expect(pattern.test(empty)).toBe(false);
+    expect(pattern.test("Verificá por otro canal.")).toBe(true);
+  }
+  expect(properties.recommendations.minItems).toBe(1);
   expect(wire.tools).toBeUndefined();
   expect(wire.output_config.format.parse).toBeUndefined();
 });

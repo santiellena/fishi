@@ -56,6 +56,13 @@ describe("validación de la respuesta del modelo", () => {
    expect(JSON.stringify(error)).not.toContain("private-field-name"); expect(JSON.stringify(error)).not.toContain("private value");
   }
  });
+ it("rechaza recomendaciones vacías o de espacios e identifica su posición", async () => {
+  for (const recommendation of ["", " ", "\n\t"]) {
+   await expect(analyze(response({ ...benign, recommendations: [recommendation] }))).rejects.toMatchObject({
+    code: "INVALID_REPORT", diagnostic: { stage: "schema", issues: [{ path: "recommendations.0", code: "too_small" }] },
+   });
+  }
+ });
  it("acepta texto de reporte acompañado de thinking sin convertirlo en evidencia", async () => {
   const result = response(benign);
   result.content.unshift({ type: "thinking", thinking: "synthetic reasoning", signature: "synthetic-signature" });

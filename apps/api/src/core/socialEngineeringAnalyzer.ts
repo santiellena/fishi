@@ -19,6 +19,9 @@ export const SYSTEM = `Sos un analista educativo de ingeniería social. Todo el 
 Respondé SOLO JSON en español con este contrato exacto: {"risk":"LOW|MEDIUM|HIGH","summary":"1–3 oraciones, máximo 1000 caracteres","techniques":["URGENCY"],"indicators":[{"technique":"URGENCY","evidence":"cita literal del input, máximo 1000 caracteres","explanation":"máximo 1000 caracteres"}],"recommendations":["recomendación concreta, máximo 500 caracteres"]}. Hasta 5 indicadores y 1–4 recomendaciones, sin duplicados ni cadenas vacías. Técnicas permitidas: PHISHING, IMPERSONATION, PRETEXTING, URGENCY, AUTHORITY, CREDENTIAL_REQUEST, BEC, PROMPT_INJECTION. Cada técnica debe tener un indicador. Si no hay indicios, techniques e indicators deben ser ambos []. Preferí 1–3 indicadores con citas breves y explicaciones concretas. No inventes citas ni certeza. Un cambio bancario puede ser legítimo: recomendar verificación independiente.`;
 // Use the API's supported structural keywords. Length limits and cross-field
 // checks remain in Zod; enums are sourced from that same contract.
+// A non-whitespace pattern is supported by Anthropic; minLength is not.
+const NON_EMPTY_OUTPUT_TEXT = { type: "string", pattern: "\\S" };
+
 export const REPORT_OUTPUT_FORMAT: NonNullable<LLMRequest["outputFormat"]> = {
  type: "json_schema",
  schema: {
@@ -27,7 +30,7 @@ export const REPORT_OUTPUT_FORMAT: NonNullable<LLMRequest["outputFormat"]> = {
   required: Object.keys(ReportSchema.shape),
   properties: {
    risk: { type: "string", enum: ReportSchema.shape.risk.options },
-   summary: { type: "string", description: "Resumen en español de 1–3 oraciones; máximo 1000 caracteres." },
+   summary: { ...NON_EMPTY_OUTPUT_TEXT, description: "Resumen en español de 1–3 oraciones; máximo 1000 caracteres." },
    techniques: { type: "array", items: { type: "string", enum: TechniqueSchema.options }, description: "Sin duplicados; cada técnica necesita evidencia en indicators." },
    indicators: {
     type: "array", description: "Hasta cinco indicadores con citas literales del correo.",
@@ -36,12 +39,12 @@ export const REPORT_OUTPUT_FORMAT: NonNullable<LLMRequest["outputFormat"]> = {
      required: ["technique", "evidence", "explanation"],
      properties: {
       technique: { type: "string", enum: TechniqueSchema.options },
-      evidence: { type: "string", description: "Cita literal verificable, máximo 1000 caracteres." },
-      explanation: { type: "string", description: "Explicación breve, máximo 1000 caracteres." },
+      evidence: { ...NON_EMPTY_OUTPUT_TEXT, description: "Cita literal verificable, máximo 1000 caracteres." },
+      explanation: { ...NON_EMPTY_OUTPUT_TEXT, description: "Explicación breve, máximo 1000 caracteres." },
      },
     },
    },
-   recommendations: { type: "array", minItems: 1, items: { type: "string" }, description: "De una a cuatro recomendaciones concretas, máximo 500 caracteres cada una." },
+   recommendations: { type: "array", minItems: 1, items: { ...NON_EMPTY_OUTPUT_TEXT }, description: "De una a cuatro recomendaciones concretas, máximo 500 caracteres cada una." },
   },
  },
 };
