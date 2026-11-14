@@ -31,11 +31,11 @@ export function Report({ run }: { run?: ProcessingResult }) {
   <p className="report-disclaimer">Puede haber falsos positivos y negativos. Los indicios no prueban fraude ni verifican la identidad del remitente.</p>
  </section>;
 }
-interface Props { email: EmailDetail | null; emailId: string; subject: string; from: string; run?: ProcessingResult; busy: boolean; onProcess: () => void }
-export function Detail({ email, subject, from, run, busy, onProcess }: Props) {
+interface Props { email: EmailDetail | null; emailId: string; subject: string; from: string; run?: ProcessingResult; source?: "FIXTURE" | "EXTENSION"; busy: boolean; onProcess: () => void }
+export function Detail({ email, subject, from, run, source = "FIXTURE", busy, onProcess }: Props) {
  return <div className="detail">
-  <header className="case-head"><div className="case-title"><span className="eyebrow">Correo de demostración</span><h2>{subject}</h2><p className="case-from">{from}</p></div><button className="btn btn-primary" disabled={busy || run?.status === "PROCESSING"} onClick={onProcess}><Icon name="play" size={16} />{run?.status === "PROCESSING" ? "Analizando…" : "Analizar"}</button></header>
-  <section className="panel email-panel"><header className="email-head"><h3><Icon name="mail" size={17} />Contenido del correo</h3><span className="tag tag-warn">Sintético · no confiable</span></header><blockquote className="email-body">{email?.textBody ?? "Cargando correo…"}</blockquote>{email?.links?.map(link => <p className="email-link" key={link}>{link}</p>)}</section>
+  <header className="case-head"><div className="case-title"><span className="eyebrow">{source === "EXTENSION" ? "Gmail · Extensión" : "Correo de ejemplo"}</span><h2>{subject}</h2><p className="case-from">{from}</p></div>{source === "FIXTURE" && <button className="btn btn-primary" title="Enviar este correo al analizador de Anthropic Claude" disabled={busy || run?.status === "PROCESSING"} onClick={onProcess}><Icon name="play" size={16} />{run?.status === "PROCESSING" ? "Analizando…" : "Analizar"}</button>}</header>
+  <section className="panel email-panel"><header className="email-head"><h3><Icon name="mail" size={17} />Contenido del correo</h3><span className="tag tag-warn">{source === "EXTENSION" ? "Gmail · contenido externo" : "Ejemplo · contenido externo"}</span></header>{source === "EXTENSION" ? <p className="gmail-content-note">El contenido original permanece en Gmail. Acá podés consultar el reporte y sus evidencias. Para volver a analizarlo, usá la extensión.</p> : <><blockquote className="email-body">{email?.textBody ?? "Cargando correo…"}</blockquote>{email?.links?.map(link => <p className="email-link" key={link}>{link}</p>)}</>}</section>
   <Report run={run} />
  </div>;
 }

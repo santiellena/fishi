@@ -1,6 +1,6 @@
 import { Icon, type IconName } from "./Icons";
 import { STATUS_LABEL, statusOf } from "./lib";
-import type { EmailSummary, ProcessingResult, UiStatus } from "./types";
+import type { InboxEmail, ProcessingResult, UiStatus } from "./types";
 
 const STATUS_ICON: Record<UiStatus, IconName> = {
   PENDING: "clock",
@@ -44,7 +44,7 @@ function Distribution({ counts, total }: { counts: Record<UiStatus, number>; tot
 }
 
 interface Props {
-  emails: EmailSummary[];
+  emails: InboxEmail[];
   latest: Map<string, ProcessingResult>;
   counts: Record<UiStatus, number>;
   viewedId: string | null;
@@ -74,12 +74,13 @@ export function Inbox({
   onProcessSelected,
   onProcessPending,
 }: Props) {
-  const allChecked = emails.length > 0 && emails.every((e) => checked.has(e.id));
+  const selectable = emails.filter(email => email.source === "FIXTURE");
+  const allChecked = selectable.length > 0 && selectable.every(email => checked.has(email.id));
   return (
     <aside className="rail" aria-label="Bandeja de entrada">
       <div className="rail-head">
         <div className="rail-title">
-          <h2>Bandeja de demostración</h2>
+          <h2>Bandeja de correos</h2>
           <span className="count">{emails.length} correos</span>
         </div>
         <Distribution counts={counts} total={emails.length} />
@@ -98,7 +99,7 @@ export function Inbox({
           </button>
         </div>
         <label className="check-all">
-          <input type="checkbox" checked={allChecked} onChange={(e) => onToggleAll(e.target.checked)} disabled={busy} />
+          <input type="checkbox" checked={allChecked} onChange={(e) => onToggleAll(e.target.checked)} disabled={busy || selectable.length === 0} title="Seleccionar los correos de ejemplo disponibles para analizar" />
           Seleccionar todos
         </label>
       </div>
@@ -107,20 +108,20 @@ export function Inbox({
           const status = statusOf(e.id, latest);
           return (
             <li key={e.id} className={`mail-row mail-${status}${e.id === viewedId ? " is-active" : ""}`}>
-              <input
+              {e.source === "EXTENSION" ? <span className="gmail-origin" title="Analizado desde Gmail"><Icon name="mail" size={15} /></span> : <input
                 type="checkbox"
                 aria-label={`Seleccionar ${e.subject}`}
                 checked={checked.has(e.id)}
                 onChange={() => onToggle(e.id)}
                 disabled={busy}
-              />
+              />}
               <button className="mail-main" onClick={() => onView(e.id)} aria-current={e.id === viewedId}>
                 <span className="avatar" aria-hidden="true">
                   {initial(e.from)}
                 </span>
                 <span className="mail-text">
                   <span className="mail-subject">{e.subject}</span>
-                  <span className="mail-from">{e.from}</span>
+                  <span className="mail-from"><span className={`mail-source source-${e.source}`}>{e.source === "EXTENSION" ? "Gmail" : "Ejemplo"}</span> · {e.from}</span>
                 </span>
               </button>
               <StatusBadge status={status} />

@@ -1,4 +1,4 @@
-import type { AnalysisReport, ProcessingResult, UiStatus } from "./types";
+import type { AnalysisReport, EmailSummary, InboxEmail, ProcessingResult, UiStatus } from "./types";
 export const STATUS_LABEL: Record<UiStatus, string> = { PENDING: "Pendiente", PROCESSING: "Analizando", ANALYZED: "Analizado", FAILED: "Falló" };
 export function latestRunByEmail(runs: ProcessingResult[]) {
  const map = new Map<string, ProcessingResult>();
@@ -22,4 +22,18 @@ export const TECHNIQUE_LABEL: Record<AnalysisReport["techniques"][number], strin
 export function runTime(createdAt: string) {
  const date = new Date(createdAt);
  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Gmail rows reference existing runs; never insert them into the fixture dataset. */
+export function buildInbox(fixtures: EmailSummary[], runs: ProcessingResult[]) {
+ const latest = latestRunByEmail(runs);
+ const gmail: InboxEmail[] = [];
+ for (const run of [...runs].reverse()) {
+  if (run.source !== "EXTENSION") continue;
+  const id = `gmail:${run.runId}`;
+  gmail.push({ id, from: run.emailPreview.from, subject: run.emailPreview.subject, source: "EXTENSION" });
+  latest.set(id, run);
+ }
+ const entries: InboxEmail[] = [...gmail, ...fixtures.map(email => ({ ...email, source: "FIXTURE" as const }))];
+ return { entries, latest };
 }

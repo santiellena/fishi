@@ -3,7 +3,7 @@ import { fetchEmail, fetchEmails, fetchRun, fetchRuns, startRun } from "./api";
 import { Detail, Report } from "./Detail";
 import { BrandMark, Icon } from "./Icons";
 import { Inbox, StatusBadge } from "./Inbox";
-import { countByStatus, latestRunByEmail, statusOf, sequential, RISK_LABEL, runTime } from "./lib";
+import { countByStatus, buildInbox, statusOf, sequential, RISK_LABEL, runTime } from "./lib";
 import type { EmailDetail, EmailSummary, ProcessingResult } from "./types";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -17,6 +17,9 @@ export default function App() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { entries: inboxEmails, latest } = useMemo(() => buildInbox(emails, runs), [emails, runs]);
+  const viewed = inboxEmails.find(email => email.id === viewedId);
 
   const refreshRuns = useCallback(async () => {
     try {
@@ -43,19 +46,18 @@ export default function App() {
   }, [refreshRuns]);
 
   useEffect(() => {
-    if (!viewedId) return;
+    if (!viewed || viewed.source === "EXTENSION") { setDetail(null); return; }
     let cancelled = false; // evita que una respuesta tardía pise el detalle de otro correo
     setDetail(null);
-    fetchEmail(viewedId)
+    fetchEmail(viewed.id)
       .then((d) => !cancelled && setDetail(d))
       .catch(() => !cancelled && setError("No se pudo cargar el correo."));
     return () => {
       cancelled = true;
     };
-  }, [viewedId]);
+  }, [viewedId, viewed?.source]);
 
-  const latest = useMemo(() => latestRunByEmail(runs), [runs]);
-  const counts = useMemo(() => countByStatus(emails.map((e) => e.id), latest), [emails, latest]);
+  const counts = useMemo(() => countByStatus(inboxEmails.map((e) => e.id), latest), [inboxEmails, latest]);
 
   const waitRun = useCallback(async (runId: string, label: string) => {
     const deadline = Date.now() + MAX_WAIT_MS;
@@ -99,7 +101,6 @@ export default function App() {
       return next;
     });
 
-  const viewed = emails.find((e) => e.id === viewedId);
 
   return (
     <div className="app">
@@ -111,20 +112,16 @@ export default function App() {
             <p className="brand-sub">Análisis de ingeniería social en correos, con IA</p>
           </div>
         </div>
-        <span className="sandbox-pill" title="Solo correos sintéticos autorizados">
-          <Icon name="shield" size={14} />
-          Entorno de pruebas con datos sintéticos
-        </span>
+        <span className="product-pill">Reglas + IA</span>
       </header>
       {error && (
         <div className="error" role="alert">
           {error}
         </div>
       )}
-      <p className="privacy"><Icon name="shield" size={16} /><span><strong>Demo con datos sintéticos.</strong> Al analizar, el correo se envía al servicio local y a Anthropic Claude, también en lote.</span></p>
       <main className="layout">
         <Inbox
-          emails={emails}
+          emails={inboxEmails}
           latest={latest}
           counts={counts}
           viewedId={viewedId}
@@ -142,6 +139,7 @@ export default function App() {
             <Detail
               email={detail}
               emailId={viewed.id}
+              source={viewed.source}
               subject={viewed.subject}
               from={viewed.from}
               run={latest.get(viewed.id)}
@@ -155,7 +153,7 @@ export default function App() {
             <header className="recent-head"><div><span className="eyebrow">Ambos orígenes · historial en memoria</span><h2>Análisis recientes <span className="section-count">{runs.length}</span></h2></div><button className="btn" onClick={() => void refreshRuns()}><Icon name="clock" size={14} />Actualizar</button></header>
             <p className="hint">Incluye la bandeja y la extensión. Se pierde al reiniciar la API.</p>
             <div className="recent-list">{[...runs].reverse().map(run => <details className="recent-item" id={`run-${run.runId}`} key={run.runId}>
-              <summary><span className="recent-chevron" aria-hidden="true">›</span><span className="recent-copy"><span className="recent-meta"><span className={`source-badge source-${run.source}`}>{run.source === "EXTENSION" ? "EXTENSION · Gmail de prueba" : "FIXTURE · Bandeja"}</span><time dateTime={run.createdAt}>{runTime(run.createdAt)}</time></span><span className="recent-subject">{run.emailPreview.subject}</span><span className="recent-from">{run.emailPreview.from}</span></span><span className="recent-state">{run.status === "ANALYZED" && run.report ? <span className={`risk-badge risk-${run.report.risk}`}>Riesgo {RISK_LABEL[run.report.risk]}</span> : <StatusBadge status={run.status} />}</span></summary>
+              <summary><span className="recent-chevron" aria-hidden="true">›</span><span className="recent-copy"><span className="recent-meta"><span className={`source-badge source-${run.source}`}>{run.source === "EXTENSION" ? "Gmail" : "Ejemplo"}</span><time dateTime={run.createdAt}>{runTime(run.createdAt)}</time></span><span className="recent-subject">{run.emailPreview.subject}</span><span className="recent-from">{run.emailPreview.from}</span></span><span className="recent-state">{run.status === "ANALYZED" && run.report ? <span className={`risk-badge risk-${run.report.risk}`}>Riesgo {RISK_LABEL[run.report.risk]}</span> : <StatusBadge status={run.status} />}</span></summary>
               <div className="recent-report"><Report run={run} /></div>
             </details>)}</div>
             {!runs.length && <div className="panel recent-empty"><Icon name="clock" size={22} /><p>Tus análisis aparecerán acá.<span>Podés iniciarlos desde la bandeja o la extensión de Gmail.</span></p></div>}

@@ -16,7 +16,7 @@ it('bandeja, lectura, análisis individual e historial de extensión escapado', 
  vi.mocked(api.startRun).mockResolvedValue('1'); vi.mocked(api.fetchRun).mockResolvedValue(run);
  const { container } = render(<App />);
  await screen.findByText('<script>ataque</script>'); expect(container.querySelector('script')).toBeNull(); expect(container.querySelector('img')).toBeNull();
- expect(screen.getByText(/EXTENSION · Gmail de prueba/)).toBeTruthy();
+ expect(screen.getAllByText(/Gmail/).length).toBeGreaterThan(0);
  await userEvent.click(screen.getByRole('button', { name: /^Analizar$/ }));
  await waitFor(() => expect(api.startRun).toHaveBeenCalledWith('email-001')); expect(api.fetchRun).toHaveBeenCalledWith('1');
 });
@@ -42,4 +42,26 @@ it('reporte traduce riesgo y técnicas, conserva evidencia escapada y permite co
  const summary = container.querySelector('.static-panel > summary') as HTMLElement;
  await userEvent.click(summary); expect(summary.parentElement?.hasAttribute('open')).toBe(true);
  expect(screen.getByText('Presión temporal')).toBeTruthy();
+});
+it('incorpora Gmail a la bandeja y al conteo sin reenviarlo al analizar seleccionados', async () => {
+ const fixture = { id: 'email-001', from: 'a@prueba.example', subject: 'Correo de ejemplo' };
+ const gmail: ProcessingResult = { ...run, runId: 'gmail-run', source: 'EXTENSION', emailId: undefined, emailPreview: { from: 'b@prueba.example', subject: 'Correo recibido desde Gmail' } };
+ vi.mocked(api.fetchEmails).mockResolvedValue([fixture]);
+ vi.mocked(api.fetchEmail).mockResolvedValue({ ...fixture, textBody: 'Texto del ejemplo.' });
+ vi.mocked(api.fetchRuns).mockResolvedValue([gmail]);
+ vi.mocked(api.startRun).mockResolvedValue('fixture-run'); vi.mocked(api.fetchRun).mockResolvedValue(run);
+ render(<App />);
+ await screen.findByRole('button', { name: /Correo recibido desde Gmail/ });
+ expect(screen.getByText('2 correos')).toBeTruthy();
+ expect(screen.getByRole('img', { name: 'Analizado: 1, Pendiente: 1' })).toBeTruthy();
+ await userEvent.click(screen.getByRole('button', { name: /Correo recibido desde Gmail/ }));
+ expect(await screen.findByText(/El contenido original permanece en Gmail/)).toBeTruthy();
+ expect(screen.queryByRole('button', { name: /^Analizar$/ })).toBeNull();
+ expect(api.fetchEmail).not.toHaveBeenCalledWith('gmail:gmail-run');
+ await userEvent.click(screen.getByLabelText('Seleccionar todos'));
+ await userEvent.click(screen.getByRole('button', { name: 'Analizar seleccionados (1)' }));
+ await waitFor(() => expect(api.startRun).toHaveBeenCalledTimes(1));
+ expect(api.startRun).toHaveBeenCalledWith('email-001');
+ expect(screen.queryByText('Entorno de pruebas con datos sintéticos')).toBeNull();
+ expect(screen.queryByText(/Demo con datos sintéticos/)).toBeNull();
 });

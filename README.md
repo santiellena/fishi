@@ -1,6 +1,6 @@
 # Fishi
 
-Análisis educativo de posibles indicios de ingeniería social en correos, con reglas deterministas y una llamada a Anthropic Claude por análisis. Dos entradas comparten el mismo motor: una bandeja web de ocho correos sintéticos y una extensión local para un mensaje abierto en Gmail de prueba.
+Análisis educativo de posibles indicios de ingeniería social en correos, con reglas deterministas y una llamada a Anthropic Claude por análisis. Dos entradas comparten el mismo motor: una bandeja web con ocho correos de ejemplo y los análisis recibidos desde Gmail, y una extensión local para un mensaje abierto en Gmail de prueba.
 
 Fishi ofrece evaluaciones orientativas y explicables, con posibles falsos positivos y negativos. No verifica remitentes, autenticidad, DNS, SPF/DKIM/DMARC, reputación ni adjuntos. No abre enlaces. **No es offline:** Claude procesa el texto en un servicio externo. Usar únicamente datos ficticios autorizados.
 
@@ -67,6 +67,8 @@ El RunStore conserva hasta 200 corridas (retira la completada más antigua al al
 CORS permite los dos orígenes web locales y orígenes `chrome-extension://` con ID válido para admitir extensiones desempaquetadas con IDs variables. **Esto no autentica al cliente**: es una demo local sin login, no un servicio para publicar o compartir en red. No extender el bind ni el CORS para exponerla.
 
 ## Validación y demo
+
+La bandeja reúne los ocho ejemplos y una entrada por cada corrida de Gmail, identificada por origen. Las entradas Gmail cuentan según su estado real (ANALYZED, PROCESSING o FAILED) y abren su reporte sin otra llamada a Claude. No se incorpora su cuerpo al dataset ni se habilita reanálisis desde la web: para repetirlo se usa la extensión. La selección y el lote incluyen solo los ejemplos. Las entradas recibidas desaparecen con el historial al reiniciar la API.
 
 La interfaz presenta riesgo y técnicas en español, evidencias y recomendaciones separadas, señales estáticas desplegables e historial compacto por origen. El popup ofrece un resumen breve, explicación desplegable, recomendación y acceso a Análisis recientes en la web. Se revisó visualmente en Chrome headless (web en escritorio y móvil; popup de 410 × 600 con datos sintéticos y API simulada), sin iniciar análisis reales.
 

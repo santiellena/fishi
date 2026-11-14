@@ -31,7 +31,7 @@ Registrar navegador/versión, fecha y resultado observado; no marcar pasos no ej
 - [ ] Un mensaje sintético abierto: vista previa fiel, sin contenido oculto o de otros mensajes.
 - [ ] Cancelación: no aparece ninguna corrida nueva.
 - [ ] Confirmación: una sola corrida, PROCESSING y luego resultado real en popup.
-- [ ] Misma corrida visible en portal con origen EXTENSION, sin agregarse a ocho fixtures.
+- [ ] Misma corrida visible en portal con origen EXTENSION, también visible en la bandeja y en su contador con el estado real, sin modificar los ocho fixtures.
 - [ ] API caída: error de conexión, sin riesgo LOW.
 - [ ] Error de LLM: FAILED, sin informe de seguridad; no repetir llamadas reales solo para provocar este fallo (ya probado con mocks).
 - [ ] Popup cerrado durante un análisis: consultar la corrida en portal al volver.
