@@ -4,7 +4,13 @@ const api = 'http://127.0.0.1:3001';
 let email = null;
 const status = text => { $('status').textContent = text; };
 async function request(path, options = {}) {
- const res = await fetch(api + path, { ...options, signal: AbortSignal.timeout(10000) });
+ let res;
+ try { res = await fetch(api + path, { ...options, signal: AbortSignal.timeout(10000) }); }
+ catch (error) {
+  if (error?.name === 'TimeoutError') throw new Error('La API local no respondió en 10 segundos. El análisis puede seguir activo; consultá Análisis recientes en Fishi Web antes de reintentar.');
+  if (error instanceof TypeError) throw new Error('API local no disponible. Comprobá que Fishi API siga encendida.');
+  throw error;
+ }
  if (!res.ok) throw new Error(`La API rechazó la solicitud (${res.status}). Revisá los límites y el backend.`);
  return res.json();
 }

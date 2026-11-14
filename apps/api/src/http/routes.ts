@@ -3,6 +3,7 @@ import { z } from "zod";
 import { EMAILS, findEmail } from "../company/emails.js";
 import { EmailInputSchema, type AnalysisEmailInput } from "../core/types.js";
 import { staticSignals, type SocialEngineeringAnalyzer } from "../core/socialEngineeringAnalyzer.js";
+import { describeAnalysisError } from "../core/analysisError.js";
 import { RunStore } from "../core/RunStore.js";
 export function createApp(analyzer: Pick<SocialEngineeringAnalyzer, "analyze">, store = new RunStore()) {
  const app = express(); app.disable("x-powered-by");
@@ -28,9 +29,14 @@ export function createApp(analyzer: Pick<SocialEngineeringAnalyzer, "analyze">, 
  const start = (input: AnalysisEmailInput, source: "FIXTURE" | "EXTENSION", emailId?: string) => {
   const email = EmailInputSchema.parse(input);
   const run = store.create(email, source, emailId); run.staticSignals = staticSignals(email);
+  const startedAt = Date.now();
   void Promise.resolve().then(() => analyzer.analyze(email)).then(result => {
    run.report = result.report; run.staticSignals = result.staticSignals; run.status = "ANALYZED";
-  }).catch(() => { run.status = "FAILED"; run.report = null; run.error = "No se pudo completar el análisis: servicio no disponible, tiempo agotado o respuesta inválida. Podés reintentar."; });
+  }).catch((error: unknown) => {
+   const failure = describeAnalysisError(error);
+   run.status = "FAILED"; run.report = null; run.error = failure.message; run.errorCode = failure.code;
+   console.warn("Fishi analysis_failed", JSON.stringify({ runId: run.runId, code: failure.code, elapsedMs: Date.now() - startedAt, ...(failure.httpStatus !== undefined ? { httpStatus: failure.httpStatus } : {}) }));
+  });
   return run.runId;
  };
  app.post("/runs", (req, res) => {

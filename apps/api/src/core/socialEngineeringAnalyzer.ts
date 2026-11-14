@@ -1,4 +1,5 @@
 import { EmailInputSchema, ReportSchema, type AnalysisEmailInput } from "./types.js";
+import { AnalysisError } from "./analysisError.js";
 import type { LLMClient } from "./llm.js";
 const patterns: [string, RegExp][] = [
  ["Presión temporal o urgencia", /urgente|inmediato|hoy mismo|\d+ minutos/i],
@@ -24,13 +25,15 @@ export class SocialEngineeringAnalyzer {
   try {
    const response = await Promise.race([
     this.llm.complete({ system: SYSTEM, messages: [{ role: "user", content: JSON.stringify(email) }], maxTokens: 3000 }),
-    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("timeout")), this.timeoutMs); }),
+    new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new AnalysisError("ANALYSIS_TIMEOUT")), this.timeoutMs); }),
    ]);
-   if (response.stopReason !== "end_turn" || response.content.some(b => b.type !== "text")) throw new Error("invalid response");
+   if (response.stopReason !== "end_turn" || response.content.some(b => b.type !== "text")) throw new AnalysisError("INVALID_RESPONSE");
    const raw = response.content.filter(b => b.type === "text").map(b => b.text).join("\n");
-   const report = ReportSchema.parse(JSON.parse(raw));
+   let report;
+   try { report = ReportSchema.parse(JSON.parse(raw)); }
+   catch { throw new AnalysisError("INVALID_RESPONSE"); }
    const fields = [email.from, email.subject, email.textBody, ...(email.links ?? [])];
-   if (report.indicators.some(i => !fields.some(f => f.includes(i.evidence)))) throw new Error("unverifiable evidence");
+   if (report.indicators.some(i => !fields.some(f => f.includes(i.evidence)))) throw new AnalysisError("INVALID_EVIDENCE");
    return { report, staticSignals: staticSignals(email) };
   } finally { clearTimeout(timer); }
  }

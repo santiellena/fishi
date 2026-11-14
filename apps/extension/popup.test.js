@@ -45,3 +45,12 @@ it('maneja respuesta ausente o incompatible sin habilitar envío', async () => {
   await document.getElementById('confirm').onclick(); expect(fetchMock).not.toHaveBeenCalled();
  }
 });
+
+it('distingue timeout de la API local de un fallo de Claude sin reenviar', async () => {
+ const fetchMock = vi.fn().mockRejectedValue(new DOMException('raw timeout', 'TimeoutError'));
+ await setup(fetchMock);
+ await document.getElementById('extract').onclick(); await document.getElementById('confirm').onclick();
+ expect(document.getElementById('status').textContent).toContain('API local no respondió en 10 segundos');
+ expect(document.getElementById('status').textContent).toContain('puede seguir activo');
+ expect(fetchMock).toHaveBeenCalledTimes(1); expect(document.getElementById('result').hidden).toBe(true);
+});

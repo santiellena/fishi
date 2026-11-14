@@ -1,3 +1,4 @@
+import type { AnalysisErrorCode } from "./analysisError.js";
 import { z } from "zod";
 const text = (max: number) => z.string().trim().min(1).max(max);
 export const EmailInputSchema = z.object({ from: text(500), subject: text(500), textBody: text(20000), links: z.array(text(2048)).max(30).optional() }).strict();
@@ -15,5 +16,5 @@ export interface AnalysisRun {
  runId: string; source: "FIXTURE" | "EXTENSION"; emailId?: string;
  emailPreview: { from: string; subject: string }; createdAt: string;
  status: "PROCESSING" | "ANALYZED" | "FAILED";
- report: AnalysisReport | null; staticSignals: string[]; error?: string;
+ report: AnalysisReport | null; staticSignals: string[]; error?: string; errorCode?: AnalysisErrorCode;
 }

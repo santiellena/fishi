@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { describe, it, expect, vi } from "vitest";
 import { SocialEngineeringAnalyzer, staticSignals } from "../src/core/socialEngineeringAnalyzer.js";
 import { EMAILS } from "../src/company/emails.js";
@@ -91,6 +92,22 @@ describe("API", () => {
    expect((await post(base, "/runs/adhoc", { email })).status).toBe(400);
    expect((await post(base, "/runs/adhoc", { email: { ...email, links: [], secret: "no" } })).status).toBe(400);
   });
+ });
+ it("registra el código y duración del fallo sin contenido del proveedor", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+   await withApi({ complete: async () => { throw new Anthropic.APIConnectionTimeoutError({ message: "private provider content" }); } }, async base => {
+    const { runId } = await (await post(base, "/runs", { emailId: "email-001" })).json();
+    await new Promise(r => setTimeout(r, 15));
+    const run = await (await fetch(base + "/runs/" + runId)).json();
+    expect(run.status).toBe("FAILED"); expect(run.errorCode).toBe("LLM_TIMEOUT"); expect(run.error).toContain("Claude");
+    const log = warn.mock.calls.find(call => call[0] === "Fishi analysis_failed" && JSON.parse(String(call[1])).runId === runId);
+    expect(log).toBeDefined();
+    const diagnostic = JSON.parse(String(log![1]));
+    expect(diagnostic.code).toBe("LLM_TIMEOUT"); expect(diagnostic.elapsedMs).toBeGreaterThanOrEqual(0);
+    expect(JSON.stringify(log)).not.toContain("private provider content"); expect(JSON.stringify(run)).not.toContain("private provider content");
+   });
+  } finally { warn.mockRestore(); }
  });
  it("fallos y timeout terminan FAILED sin filtrar excepciones", async () => {
   for (const llm of [mock({}), { complete: async () => { throw Error("secret body"); } }, { complete: () => new Promise<LLMResponse>(() => {}) }]) await withApi(llm, async base => {
