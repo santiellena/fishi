@@ -16,7 +16,7 @@ it('extrae solo el mensaje visible con enlaces como texto', () => {
  const result = extractGmailMessage(); expect(result.ok).toBe(true); const email = result.email; expect(email.from).toBe('ana@test.example'); expect(email.subject).toBe('Asunto sintético'); expect(email.textBody).not.toContain('oculto'); expect(email.links).toEqual(['https://test.example']);
 });
 it('rechaza inbox vacío, otra pestaña, múltiples mensajes y contenido citado', () => {
- for (const html of ['', fixture + fixture, fixture.replace('</div></div></div>', '<blockquote>Cita anterior</blockquote></div></div></div>')]) {
+ for (const html of ['', fixture + fixture, fixture.replace('</div></div></div>', '<blockquote type="cite">Cita anterior</blockquote></div></div></div>')]) {
   document.body.innerHTML = html; expect(extractGmailMessage()).toMatchObject({ ok: false, error: expect.any(String) });
  }
  document.body.innerHTML = fixture; vi.stubGlobal('location', { origin: 'https://evil.example' }); expect(extractGmailMessage()).toMatchObject({ ok: false, error: expect.any(String) });
@@ -36,4 +36,21 @@ it('conserva éxito y error al serializar la función como executeScript', () =>
  expect(execute()).toMatchObject({ ok: true, email: { subject: 'Asunto sintético' } });
  document.body.innerHTML = '';
  expect(execute()).toMatchObject({ ok: false, error: expect.stringContaining('vistas visibles: 0') });
+});
+
+it('acepta blockquote de formato sin confundirlo con otra conversación', () => {
+ document.body.innerHTML = fixture.replace('Mensaje sintético', '<blockquote>Texto sintético con formato</blockquote>');
+ const result = extractGmailMessage();
+ expect(result.ok).toBe(true); expect(result.email.textBody).toContain('Texto sintético con formato');
+});
+it('rechaza citas marcadas y dos cuerpos expandidos dentro de la misma vista', () => {
+ for (const extra of ['<div class="gmail_quote">Mensaje anterior</div>', '<blockquote type="cite">Mensaje anterior</blockquote>', '<div class="a3s aiL">Segundo mensaje</div>']) {
+  document.body.innerHTML = fixture.replace('Mensaje sintético', extra + 'Mensaje sintético');
+  expect(extractGmailMessage().ok).toBe(false);
+ }
+});
+it('no rechaza una cita marcada que no está visible', () => {
+ document.body.innerHTML = fixture.replace('Mensaje sintético', '<div class="gmail_quote" hidden>Cita oculta</div>Mensaje sintético');
+ const result = extractGmailMessage();
+ expect(result.ok).toBe(true); expect(result.email.textBody).not.toContain('Cita oculta');
 });

@@ -25,7 +25,8 @@ Registrar navegador/versión, fecha y resultado observado; no marcar pasos no ej
 - [ ] Carga de la extensión desempaquetada sin errores de manifest/CSP.
 - [ ] Inbox de Gmail sin correo abierto: error claro, ningún envío.
 - [ ] Pestaña ajena a Gmail: rechazo.
-- [ ] Dos mensajes expandidos o cita visible: rechazo por ambigüedad.
+- [ ] Dos mensajes expandidos o cita visible marcada con `.gmail_quote` o `blockquote[type="cite"]`: rechazo por ambigüedad.
+- [ ] Un mensaje sintético con `blockquote` de formato: se acepta sin confundirlo con una conversación anterior.
 - [ ] Un mensaje sintético abierto: vista previa fiel, sin contenido oculto o de otros mensajes.
 - [ ] Cancelación: no aparece ninguna corrida nueva.
 - [ ] Confirmación: una sola corrida, PROCESSING y luego resultado real en popup.
