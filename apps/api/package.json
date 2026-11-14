@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "npm run test:unit",
+    "test:unit": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:integration": "vitest run test/http.integration.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

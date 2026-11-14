@@ -1,3 +1,4 @@
+import { TECHNIQUE_DEFINITIONS } from "../../api/src/core/knowledge";
 import type { AnalysisReport, EmailSummary, InboxEmail, ProcessingResult, UiStatus } from "./types";
 export const STATUS_LABEL: Record<UiStatus, string> = { PENDING: "Pendiente", PROCESSING: "Analizando", ANALYZED: "Analizado", FAILED: "Falló" };
 export function latestRunByEmail(runs: ProcessingResult[]) {
@@ -15,10 +16,7 @@ export async function sequential(ids: string[], analyze: (id: string) => Promise
 }
 
 export const RISK_LABEL = { LOW: "bajo", MEDIUM: "medio", HIGH: "alto" } as const;
-export const TECHNIQUE_LABEL: Record<AnalysisReport["techniques"][number], string> = {
- PHISHING: "Phishing", IMPERSONATION: "Suplantación", PRETEXTING: "Pretexto", URGENCY: "Urgencia",
- AUTHORITY: "Autoridad", CREDENTIAL_REQUEST: "Solicitud de credenciales", BEC: "Fraude empresarial", PROMPT_INJECTION: "Inyección de instrucciones",
-};
+export const TECHNIQUE_LABEL = Object.fromEntries(Object.entries(TECHNIQUE_DEFINITIONS).map(([technique, definition]) => [technique, definition.label])) as Record<AnalysisReport["techniques"][number], string>;
 export function runTime(createdAt: string) {
  const date = new Date(createdAt);
  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });

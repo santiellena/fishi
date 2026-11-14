@@ -7,7 +7,7 @@ export class RunStore {
    const completed = [...this.runs.values()].find(r => r.status !== "PROCESSING");
    if (completed) this.runs.delete(completed.runId);
   }
-  const run: AnalysisRun = { runId: randomUUID(), source, ...(emailId ? { emailId } : {}), emailPreview: { from: email.from, subject: email.subject }, createdAt: new Date().toISOString(), status: "PROCESSING", report: null, staticSignals: [] };
+  const run: AnalysisRun = { runId: randomUUID(), source, ...(emailId ? { emailId } : {}), emailPreview: { from: email.from, subject: email.subject }, createdAt: new Date().toISOString(), status: "PROCESSING", report: null, staticSignals: [], staticFindings: [] };
   this.runs.set(run.runId, run); return run;
  }
  get(id: string) { return this.runs.get(id); }

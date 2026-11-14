@@ -1,8 +1,15 @@
+import { REFERENCES, RISK_CRITERIA, type ReferenceId } from "../../api/src/core/knowledge";
 import { Icon } from "./Icons";
 import { StatusBadge } from "./Inbox";
 import { RISK_LABEL, TECHNIQUE_LABEL } from "./lib";
 import type { EmailDetail, ProcessingResult } from "./types";
 
+function ReferenceList({ ids }: { ids: ReferenceId[] }) {
+ return <ul className="reference-list">{ids.map(id => {
+  const reference = REFERENCES[id];
+  return <li key={id}>{"url" in reference ? <a href={reference.url} target="_blank" rel="noopener noreferrer">{reference.title} ↗</a> : <span>{reference.title}</span>}<span>{reference.scope}</span></li>;
+ })}</ul>;
+}
 export function Report({ run }: { run?: ProcessingResult }) {
  if (!run) return <section className="panel report-empty"><Icon name="report" size={26} /><div><h3>¿Algo huele raro?</h3><p>Analizá este correo para ver sus indicios, evidencias y recomendaciones.</p></div><span className="pill pill-PENDING">Pendiente</span></section>;
  const report = run.report;
@@ -19,15 +26,20 @@ export function Report({ run }: { run?: ProcessingResult }) {
    <div className="report-columns">
     <section className="evidence-section"><h4><Icon name="report" size={16} />Evidencias del mensaje <span className="section-count">{report.indicators.length}</span></h4>
      {report.indicators.length === 0 && <p className="muted">Sin indicios concretos en la respuesta del modelo.</p>}
-     {report.indicators.map((indicator, n) => <div className="evidence" key={n}><span className="evidence-label">{TECHNIQUE_LABEL[indicator.technique]}</span><blockquote>“{indicator.evidence}”</blockquote><p>{indicator.explanation}</p></div>)}
+     {report.indicators.map((indicator, n) => <div className="evidence" key={n}><span className="evidence-label">{TECHNIQUE_LABEL[indicator.technique]}</span><span className="finding-caption">Observación · cita del mensaje</span><blockquote>“{indicator.evidence}”</blockquote><span className="finding-caption">Interpretación del modelo</span><p>{indicator.explanation}</p>
+      {indicator.referenceIds?.length ? <details className="finding-basis"><summary>Criterio, límites y fuentes</summary><p><strong>Criterio:</strong> {indicator.criterion}</p><p><strong>Límite:</strong> {indicator.limitation}</p><ReferenceList ids={indicator.referenceIds} /></details> : null}</div>)}
     </section>
     <section className="recommendations"><h4><Icon name="shield" size={17} />Qué hacer ahora</h4><ol>{report.recommendations.map(r => <li key={r}>{r}</li>)}</ol></section>
    </div>
   </div>}
   <details className="static-panel"><summary>Señales estáticas <span className="section-count">{run.staticSignals.length}</span><span className="muted small">Reglas deterministas</span></summary>
-   {run.staticSignals.length ? <ul>{run.staticSignals.map(s => <li key={s}>{s}</li>)}</ul> : <p className="muted">No se detectaron los patrones configurados.</p>}
+   {run.staticFindings?.length ? <div className="static-findings">{run.staticFindings.map(finding => <article className="static-finding" key={finding.ruleId}>
+    <header><strong>{finding.title}</strong><span>{({ from: "Remitente", subject: "Asunto", textBody: "Cuerpo" } as Record<string, string>)[finding.field] ?? "Texto"} · {finding.ruleId}</span></header>
+    <blockquote>“{finding.evidence}”</blockquote><p>{finding.explanation}</p><p className="hint">{finding.limitation}</p><ReferenceList ids={finding.referenceIds} />
+   </article>)}</div> : run.staticSignals.length ? <ul>{run.staticSignals.map(s => <li key={s}>{s}</li>)}</ul> : <p className="muted">No se detectaron los patrones ES/EN configurados. Esto no demuestra ausencia de ingeniería social.</p>}
    <p className="hint">Las reglas señalan patrones de texto; no deciden el nivel de riesgo.</p>
   </details>
+  {report?.frameworkVersion && <details className="framework-panel"><summary>Marco de análisis · {report.frameworkVersion}</summary><p><strong>Criterio del riesgo {RISK_LABEL[report.risk]}:</strong> {RISK_CRITERIA[report.risk]}</p><p>La bibliografía respalda la clasificación, no certifica este correo. Fishi no calcula la Phish Scale ni probabilidades de fraude y no confirma compromiso, pagos ni exfiltración.</p><ReferenceList ids={["NIST_PHISH_SCALE", "FBI_BEC", "OWASP_LLM01", "MITRE_PHISHING", "CLASS_BUYERSEC", "CLASS_CTI"]} /></details>}
   <p className="report-disclaimer">Puede haber falsos positivos y negativos. Los indicios no prueban fraude ni verifican la identidad del remitente.</p>
  </section>;
 }

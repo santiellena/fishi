@@ -65,3 +65,13 @@ it('incorpora Gmail a la bandeja y al conteo sin reenviarlo al analizar seleccio
  expect(screen.queryByText('Entorno de pruebas con datos sintéticos')).toBeNull();
  expect(screen.queryByText(/Demo con datos sintéticos/)).toBeNull();
 });
+it('muestra las evidencias estáticas y las fuentes fijas del marco sin ejecutar HTML', async () => {
+ const grounded: ProcessingResult = { ...run, staticSignals: ['Presión temporal'], staticFindings: [{ ruleId: 'URGENCY', title: 'Presión temporal', technique: 'URGENCY', field: 'subject', evidence: '<img src=x> urgente', explanation: 'Presión temporal observable.', limitation: 'Puede ser un plazo legítimo.', referenceIds: ['NIST_PHISH_SCALE'] }], report: { ...run.report!, frameworkVersion: 'FISHI-SE-1.0' } };
+ const { container } = render(<Report run={grounded} />);
+ await userEvent.click(container.querySelector('.static-panel > summary') as HTMLElement);
+ expect(screen.getByText('“<img src=x> urgente”')).toBeTruthy(); expect(container.querySelector('img')).toBeNull();
+ await userEvent.click(screen.getByText('Marco de análisis · FISHI-SE-1.0'));
+ const links = screen.getAllByRole('link', { name: /NIST TN 2276/ });
+ expect(links.every(link => link.getAttribute('href') === 'https://doi.org/10.6028/NIST.TN.2276')).toBe(true);
+ expect(screen.getByText(/no certifica este correo/)).toBeTruthy();
+});

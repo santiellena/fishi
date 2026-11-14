@@ -32,7 +32,7 @@ npm run build
 npm run build -w @fishi/extension
 ```
 
-En entornos que bloquean puertos loopback, las pruebas HTTP necesitan permiso para abrir un puerto efímero local. No usan Internet ni Anthropic.
+`npm test` ejecuta solo pruebas unitarias y DOM con mocks, sin servidores ni llamadas de pago. `npm run test:unit` las ejecuta explícitamente en todos los workspaces. Las pruebas HTTP se conservaron separadas: `npm run test:integration` requiere puertos loopback y no se ejecutó en el último incremento. Ver [plan y alcance de pruebas](docs/testing.md).
 
 ## Extensión Chrome/Brave
 
@@ -56,7 +56,7 @@ El extractor es conservador y depende del DOM de Gmail: requiere un único conte
 
 El backend normaliza con trim y valida con Zod; rechaza campos desconocidos y contenido excesivo, sin truncar. Límites: remitente/asunto 500 caracteres cada uno, cuerpo 20.000, 30 links de 2.048 caracteres y JSON total 64 KiB. Solo JSON sin compresión. Hasta 12 intentos de inicio por minuto (incluidos inválidos) y dos análisis activos simultáneos por proceso; devuelve 429 al exceder. Polling web con requests de hasta 10 s y espera por análisis de hasta 120 s; popup hasta 60 s. Claude tiene timeout de transporte de 40 s, analizador de 45 s y **cero reintentos automáticos**.
 
-Las ocho señales cubren urgencia, bloqueo, credenciales/OTP, transferencias, autoridad aparente, secreto, datos personales e instrucciones a la IA. Son contexto, nunca un veredicto. El modelo recibe el mismo contenido normalizado como fragmentos ordenados `{ id, field, text }`, sin labels ni herramientas. Concatenar los textos de cada campo reconstruye exactamente el original: no se duplica ni se trunca el cuerpo. Cada fragmento tiene hasta 600 caracteres y se procura cortar por párrafo o frase.
+Las ocho reglas ES/EN cubren urgencia, bloqueo/pérdida de datos, credenciales/OTP, transferencias, autoridad aparente, secreto, datos personales e instrucciones a la IA. Comparan texto normalizado, distinguen negaciones simples y recuperan citas literales por campo. Son contexto, nunca un veredicto: `staticSignals` conserva títulos y `staticFindings` agrega regla, campo, evidencia y explicación. El modelo recibe el mismo contenido normalizado como fragmentos ordenados `{ id, field, text }`, sin labels ni herramientas. Concatenar los textos de cada campo reconstruye exactamente el original: no se duplica ni se trunca el cuerpo. Cada fragmento tiene hasta 600 caracteres y se procura cortar por párrafo o frase.
 
 La solicitud usa `output_config.format` (JSON Schema de Anthropic) con riesgo y técnicas enumerados, texto no vacío y `evidenceId` limitado a los IDs disponibles. Claude devuelve riesgo, resumen, indicadores con referencias y recomendaciones; **no vuelve a redactar las citas ni una lista redundante de técnicas**. Fishi recupera la evidencia del texto original, deriva técnicas de los indicadores y elimina indicadores duplicados por técnica/ID y recomendaciones idénticas después de trim. La API pública conserva `techniques` y `indicators[].evidence`, por lo que web y extensión usan el mismo contrato de siempre.
 
@@ -66,13 +66,17 @@ El RunStore conserva hasta 200 corridas (retira la completada más antigua al al
 
 CORS permite los dos orígenes web locales y orígenes `chrome-extension://` con ID válido para admitir extensiones desempaquetadas con IDs variables. **Esto no autentica al cliente**: es una demo local sin login, no un servicio para publicar o compartir en red. No extender el bind ni el CORS para exponerla.
 
+## Fundamento del análisis
+
+El marco versionado **FISHI-SE-1.0** define las ocho categorías, contraejemplos, una rúbrica cualitativa de riesgo y las limitaciones observacionales. Combina material de cátedra (BuyerSec y Cibercrimen II/CTI) con NIST TN 2276, FBI/BEC, OWASP LLM01 y MITRE T1566.002. Se incluye en el prompt; el backend agrega a cada indicador criterio, límite y referencias desde un catálogo fijo. La web permite consultar esos fundamentos junto a cada hallazgo y al riesgo. No hay búsqueda externa durante el análisis, RAG, atribución de actores ni puntuación Phish Scale. Ver [marco y fuentes](docs/marco-analisis.md).
+
 ## Validación y demo
 
 La bandeja reúne los ocho ejemplos y una entrada por cada corrida de Gmail, identificada por origen. Las entradas Gmail cuentan según su estado real (ANALYZED, PROCESSING o FAILED) y abren su reporte sin otra llamada a Claude. No se incorpora su cuerpo al dataset ni se habilita reanálisis desde la web: para repetirlo se usa la extensión. La selección y el lote incluyen solo los ejemplos. Las entradas recibidas desaparecen con el historial al reiniciar la API.
 
-La interfaz presenta riesgo y técnicas en español, evidencias y recomendaciones separadas, señales estáticas desplegables e historial compacto por origen. El popup ofrece un resumen breve, explicación desplegable, recomendación y acceso a Análisis recientes en la web. Se revisó visualmente en Chrome headless (web en escritorio y móvil; popup de 410 × 600 con datos sintéticos y API simulada), sin iniciar análisis reales.
+La interfaz presenta riesgo y técnicas en español, evidencias y recomendaciones separadas, señales estáticas con citas desplegables y criterios/fuentes por hallazgo e historial compacto por origen. El popup ofrece un resumen breve, explicación desplegable, recomendación y acceso a Análisis recientes en la web. Se revisó visualmente en Chrome headless (web en escritorio y móvil; popup de 410 × 600 con datos sintéticos y API simulada), sin iniciar análisis reales.
 
-Pruebas con mocks: reportes benignos/maliciosos, señales, referencias de evidencia inválidas, reconstrucción literal con Unicode y saltos de línea, inyección como dato, JSON inválido, error y timeout; endpoints de ambos orígenes; aislamiento de fixtures; UI de lectura, análisis individual/lote, fallos e historial; extractor DOM y permisos; consentimiento/cancelación, API caída y fallo en popup.
+Pruebas unitarias con mocks: reportes benignos/maliciosos, reglas ES/EN y negaciones, fundamentos del prompt, límites de contratos, retención del store, señales, referencias de evidencia inválidas, reconstrucción literal con Unicode y saltos de línea, inyección como dato, JSON inválido, error y timeout; aislamiento de fixtures (los endpoints HTTP están en la suite de integración separada); UI de lectura, análisis individual/lote, fallos e historial; extractor DOM y permisos; consentimiento/cancelación, API caída y fallo en popup.
 
 **Se verificó una respuesta real de Claude a través de la API con el fixture sintético `email-001`** (corrida `d9cbaabd-de1c-4d68-a413-053edae513c8`, ANALYZED, LOW, sin indicadores ni señales estáticas, aproximadamente 3,3 segundos). Esto confirmó el recorrido API → Claude → validación del reporte para ese caso, antes del cambio a selección de evidencias por IDs. El nuevo mecanismo se verificó con mocks; no se repitió una llamada real tras ese cambio. **La instalación y el recorrido completo en Chrome/Brave con Gmail no fueron verificados manualmente por Codex.** Ver [docs/demo.md](docs/demo.md) para el ensayo pendiente y sus negativas. Las pruebas DOM usan estructura artificial, no una captura de Gmail. No confundir estas pruebas con compatibilidad comprobada contra Gmail actual.
 

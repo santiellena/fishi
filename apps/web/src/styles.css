@@ -321,3 +321,17 @@ input[type="checkbox"] { accent-color: var(--info); width: 15px; height: 15px; c
 .mail-source { font-size: 10px; font-weight: 600; }
 .mail-source.source-FIXTURE { color: var(--text-3); }
 .gmail-content-note { color: var(--text-2); font-size: 13px; line-height: 1.7; }
+
+.finding-caption { display: block; color: var(--text-3); font-size: 10px; margin-top: 9px; }
+.finding-basis, .framework-panel { border-top: 1px solid var(--line-soft); padding-top: 10px; margin-top: 12px; }
+.finding-basis summary, .framework-panel summary { color: var(--info); cursor: pointer; font-size: 11.5px; }
+.finding-basis p, .framework-panel p { margin-top: 8px; font-size: 12px; color: var(--text-2); }
+.reference-list { display: grid; gap: 9px; padding-left: 17px; margin-top: 10px; font-size: 11px; color: var(--text-2); }
+.reference-list li > span:last-child { display: block; margin-top: 3px; color: var(--text-3); }
+.reference-list a { color: #9ad0ff; text-underline-offset: 2px; }
+.static-findings { display: grid; gap: 10px; margin-top: 12px; }
+.static-finding { padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; }
+.static-finding header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; font-size: 12px; }
+.static-finding header > span { color: var(--text-3); font-size: 10px; }
+.static-finding blockquote { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 10px; margin-top: 8px; border-left: 2px solid var(--info); font-size: 12px; }
+.static-finding > p { color: var(--text-2); font-size: 12px; margin-top: 8px; }

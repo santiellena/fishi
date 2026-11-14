@@ -2,7 +2,8 @@ import express from "express";
 import { z } from "zod";
 import { EMAILS, findEmail } from "../company/emails.js";
 import { EmailInputSchema, type AnalysisEmailInput } from "../core/types.js";
-import { staticSignals, type SocialEngineeringAnalyzer } from "../core/socialEngineeringAnalyzer.js";
+import { type SocialEngineeringAnalyzer } from "../core/socialEngineeringAnalyzer.js";
+import { analyzeStatic } from "../core/staticRules.js";
 import { describeAnalysisError } from "../core/analysisError.js";
 import { RunStore } from "../core/RunStore.js";
 export function createApp(analyzer: Pick<SocialEngineeringAnalyzer, "analyze">, store = new RunStore()) {
@@ -28,10 +29,10 @@ export function createApp(analyzer: Pick<SocialEngineeringAnalyzer, "analyze">, 
  });
  const start = (input: AnalysisEmailInput, source: "FIXTURE" | "EXTENSION", emailId?: string) => {
   const email = EmailInputSchema.parse(input);
-  const run = store.create(email, source, emailId); run.staticSignals = staticSignals(email);
+  const run = store.create(email, source, emailId); run.staticFindings = analyzeStatic(email); run.staticSignals = run.staticFindings.map(f => f.title);
   const startedAt = Date.now();
   void Promise.resolve().then(() => analyzer.analyze(email)).then(result => {
-   run.report = result.report; run.staticSignals = result.staticSignals; run.status = "ANALYZED";
+   run.report = result.report; run.staticSignals = result.staticSignals; run.staticFindings = result.staticFindings; run.status = "ANALYZED";
   }).catch((error: unknown) => {
    const failure = describeAnalysisError(error);
    run.status = "FAILED"; run.report = null; run.error = failure.message; run.errorCode = failure.code;
