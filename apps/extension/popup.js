@@ -14,8 +14,11 @@ $('extract').onclick = async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url || new URL(tab.url).origin !== 'https://mail.google.com') throw new Error('Abrí Gmail de prueba en la pestaña activa.');
   const results = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: extractGmailMessage });
-  if (results.length !== 1 || !results[0].result) throw new Error('No se pudo extraer un mensaje único.');
-  email = results[0].result;
+  if (results.length !== 1 || !results[0]?.result) throw new Error('El extractor no devolvió una respuesta. Recargá la extensión y la pestaña de Gmail.');
+  const extraction = results[0].result;
+  if (extraction.ok === false) throw new Error(extraction.error || 'No se pudo leer el mensaje de Gmail.');
+  if (extraction.ok !== true || !extraction.email) throw new Error('Respuesta del extractor incompatible. Recargá la extensión y Gmail.');
+  email = extraction.email;
   $('email').textContent = `${email.from}\n${email.subject}\n\n${email.textBody}`;
   $('preview').hidden = false; status('Revisá la vista previa antes de confirmar.');
  } catch (e) { status(e.message || 'No se pudo leer Gmail.'); }
