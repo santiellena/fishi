@@ -54,3 +54,16 @@ it('no rechaza una cita marcada que no está visible', () => {
  const result = extractGmailMessage();
  expect(result.ok).toBe(true); expect(result.email.textBody).not.toContain('Cita oculta');
 });
+
+it('acepta gmail_quote cuando envuelve todo el cuerpo de un único mensaje', () => {
+ document.body.innerHTML = fixture.replace('class="a3s aiL">', 'class="a3s aiL"><div class="gmail_quote">').replace('</div></div></div>', '</div></div></div></div>');
+ const result = extractGmailMessage();
+ expect(result.ok).toBe(true); expect(result.email.from).toBe('ana@test.example');
+ expect(result.email.textBody).toContain('Mensaje sintético'); expect(result.email.links).toEqual(['https://test.example']);
+});
+it('un envoltorio gmail_quote no oculta citas internas o varios cuerpos', () => {
+ for (const inner of ['Texto actual<div class="gmail_quote">Respuesta anterior</div>', '<blockquote type="cite">Respuesta anterior</blockquote>', '<div class="a3s aiL">Otro mensaje</div>']) {
+  document.body.innerHTML = fixture.replace('Mensaje sintético', `<div class="gmail_quote">${inner}</div>`);
+  expect(extractGmailMessage().ok).toBe(false);
+ }
+});

@@ -20,9 +20,14 @@ export function extractGmailMessage() {
  if (!message || !visible(message)) throw new Error("No se identifica el contenedor del mensaje.");
  const senders = [...message.querySelectorAll('.gD[email]')].filter(visible);
  if (senders.length !== 1) throw new Error(`No se identifica un remitente único (remitentes visibles: ${senders.length}).`);
- // A generic blockquote can be layout or an ordinary quotation, not a prior email.
- // Reject only explicit quote markers; this remains a best-effort DOM heuristic.
- if ([...body.querySelectorAll('.gmail_quote, blockquote[type="cite"]')].some(visible)) throw new Error("El mensaje incluye una conversación citada; usá un mensaje de prueba independiente.");
+ // Gmail may wrap the entire message in gmail_quote, even without a reply.
+ // Accept that outer wrapper; reject marked quotes inside additional message text.
+ // Explicit cite blocks remain ambiguous. This is a best-effort DOM heuristic.
+ const bodyText = body.innerText.trim();
+ const hasCitedBlock = [...body.querySelectorAll('blockquote[type="cite"]')].some(visible);
+ const hasPartialQuote = [...body.querySelectorAll('.gmail_quote')].filter(visible)
+  .some(quote => quote.innerText.trim() !== bodyText);
+ if (hasCitedBlock || hasPartialQuote) throw new Error("El mensaje incluye una conversación citada; usá un mensaje de prueba independiente.");
  const from = senders[0].getAttribute('email')?.trim();
  const subject = subjects[0].innerText.trim(); const textBody = body.innerText.trim();
  const links = [...new Set([...body.querySelectorAll('a[href]')].filter(visible).map(a => a.getAttribute('href')).filter(href => /^https?:\/\//i.test(href ?? '')))];
