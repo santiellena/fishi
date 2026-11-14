@@ -335,3 +335,18 @@ input[type="checkbox"] { accent-color: var(--info); width: 15px; height: 15px; c
 .static-finding header > span { color: var(--text-3); font-size: 10px; }
 .static-finding blockquote { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 10px; margin-top: 8px; border-left: 2px solid var(--info); font-size: 12px; }
 .static-finding > p { color: var(--text-2); font-size: 12px; margin-top: 8px; }
+
+/* Un único control de detalle para el correo abierto y el historial. */
+.view-settings { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 15px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+.view-settings p { color: var(--text-2); font-size: 12px; margin-top: 3px; }
+.view-toggle { flex: none; color: var(--info); border-color: #365b78; min-width: 143px; }
+.view-toggle.is-enabled { background: var(--info-bg); }
+.view-toggle-symbol { font-size: 19px; font-weight: 400; line-height: 1; }
+.report-columns-simple { grid-template-columns: minmax(0, 1fr); }
+.report-columns-simple .recommendations { max-width: 95ch; }
+.run-metadata { display: flex; flex-wrap: wrap; gap: 12px 22px; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 20px; }
+.run-metadata > div { min-width: 0; }
+.run-metadata dt { font-size: 10px; color: var(--text-3); }
+.run-metadata dd { margin: 3px 0 0; font-size: 11px; color: var(--text-2); overflow-wrap: anywhere; }
+.technical-details .static-panel { margin-top: 14px; }
+@media (max-width: 600px) { .view-settings { padding: 12px; gap: 10px; align-items: flex-start; } .view-toggle { min-width: auto; font-size: 12px; } .view-settings p { max-width: 25ch; font-size: 11px; } }

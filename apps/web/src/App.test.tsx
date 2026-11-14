@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, it, expect, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { Report } from './Detail';
@@ -36,7 +36,7 @@ it('un fallo no presenta riesgo bajo', () => {
 });
 it('reporte traduce riesgo y técnicas, conserva evidencia escapada y permite consultar reglas', async () => {
  const high: ProcessingResult = { ...run, staticSignals: ['Presión temporal'], report: { risk: 'HIGH', summary: 'Indicios de presión.', techniques: ['URGENCY'], indicators: [{ technique: 'URGENCY', evidence: '<img src=x>', explanation: 'Exige actuar hoy.' }], recommendations: ['Confirmá por otro canal.'] } };
- const { container } = render(<Report run={high} />);
+ const { container } = render(<Report run={high} technicalDetails />);
  expect(screen.getByText('Riesgo alto')).toBeTruthy(); expect(screen.getByText('“<img src=x>”')).toBeTruthy(); expect(container.querySelector('img')).toBeNull();
  expect(screen.getByRole('heading', { name: 'Qué hacer ahora' })).toBeTruthy();
  const summary = container.querySelector('.static-panel > summary') as HTMLElement;
@@ -67,11 +67,48 @@ it('incorpora Gmail a la bandeja y al conteo sin reenviarlo al analizar seleccio
 });
 it('muestra las evidencias estáticas y las fuentes fijas del marco sin ejecutar HTML', async () => {
  const grounded: ProcessingResult = { ...run, staticSignals: ['Presión temporal'], staticFindings: [{ ruleId: 'URGENCY', title: 'Presión temporal', technique: 'URGENCY', field: 'subject', evidence: '<img src=x> urgente', explanation: 'Presión temporal observable.', limitation: 'Puede ser un plazo legítimo.', referenceIds: ['NIST_PHISH_SCALE'] }], report: { ...run.report!, frameworkVersion: 'FISHI-SE-1.0' } };
- const { container } = render(<Report run={grounded} />);
+ const { container } = render(<Report run={grounded} technicalDetails />);
  await userEvent.click(container.querySelector('.static-panel > summary') as HTMLElement);
  expect(screen.getByText('“<img src=x> urgente”')).toBeTruthy(); expect(container.querySelector('img')).toBeNull();
  await userEvent.click(screen.getByText('Marco de análisis · FISHI-SE-1.0'));
  const links = screen.getAllByRole('link', { name: /NIST TN 2276/ });
  expect(links.every(link => link.getAttribute('href') === 'https://doi.org/10.6028/NIST.TN.2276')).toBe(true);
  expect(screen.getByText(/no certifica este correo/)).toBeTruthy();
+});
+it('alterna una vista simple por defecto y detalles en el correo y el historial sin reanalizar', async () => {
+ const fixture = { id: 'email-001', from: 'a@prueba.example', subject: 'Ejemplo analizado' };
+ const detailed: ProcessingResult = { ...run, emailPreview: { from: fixture.from, subject: fixture.subject }, staticSignals: ['Presión temporal'], report: { risk: 'HIGH', summary: 'El mensaje intenta apurarte.', techniques: ['URGENCY'], indicators: [{ technique: 'URGENCY', evidence: 'Hoy mismo', explanation: 'Presión temporal.' }], recommendations: ['Verificá por otro canal.'], frameworkVersion: 'FISHI-SE-1.0' } };
+ const gmail = { ...detailed, runId: 'gmail-details', source: 'EXTENSION' as const, emailId: undefined, emailPreview: { from: 'b@prueba.example', subject: 'Mensaje de Gmail' } };
+ vi.mocked(api.fetchEmails).mockResolvedValue([fixture]); vi.mocked(api.fetchEmail).mockResolvedValue({ ...fixture, textBody: 'Hoy mismo' }); vi.mocked(api.fetchRuns).mockResolvedValue([detailed, gmail]);
+ const { container } = render(<App />);
+ await screen.findByRole('button', { name: /Ejemplo analizado/ });
+ const currentReport = within(container.querySelector('.detail') as HTMLElement);
+ await currentReport.findByRole('heading', { name: 'Resultado del análisis' });
+ expect(screen.getByRole('button', { name: 'Más detalles' }).getAttribute('aria-pressed')).toBe('false');
+ expect(currentReport.getByRole('heading', { name: 'Qué hacer ahora' })).toBeTruthy();
+ expect(currentReport.queryByRole('heading', { name: /Evidencias del mensaje/ })).toBeNull();
+ expect(container.querySelector('.static-panel')).toBeNull(); expect(container.querySelector('.framework-panel')).toBeNull();
+ await userEvent.click(screen.getByRole('button', { name: 'Más detalles' }));
+ expect(screen.getByRole('button', { name: 'Menos detalles' }).getAttribute('aria-pressed')).toBe('true');
+ expect(currentReport.getByRole('heading', { name: /Evidencias del mensaje/ })).toBeTruthy();
+ expect(currentReport.getByRole('region', { name: 'Detalles técnicos del análisis' })).toBeTruthy();
+ await userEvent.click(container.querySelector('.recent-item > summary') as HTMLElement);
+ expect(within(container.querySelector('.recent-item[open]') as HTMLElement).getByRole('region', { name: 'Detalles técnicos del análisis' })).toBeTruthy();
+ expect(container.querySelectorAll('.recent-report .technical-details')).toHaveLength(2);
+ await userEvent.click(screen.getByRole('button', { name: /Mensaje de Gmail/ }));
+ expect(screen.getByRole('button', { name: 'Menos detalles' }).getAttribute('aria-pressed')).toBe('true');
+ await userEvent.click(screen.getByRole('button', { name: 'Menos detalles' }));
+ expect(screen.queryByRole('region', { name: 'Detalles técnicos del análisis' })).toBeNull();
+ expect(container.querySelector('.evidence-section')).toBeNull();
+ expect(screen.getAllByText('Riesgo alto').length).toBeGreaterThan(0);
+ expect(api.startRun).not.toHaveBeenCalled(); expect(api.fetchRun).not.toHaveBeenCalled();
+});
+it('la vista simple mantiene los errores sin exponer códigos y la técnica muestra el diagnóstico', () => {
+ const failed: ProcessingResult = { ...run, status: 'FAILED', report: null, errorCode: 'INVALID_REPORT', error: 'La respuesta no cumple el contrato.' };
+ const { rerender } = render(<Report run={failed} />);
+ expect(screen.getByRole('alert').textContent).toContain('No pudimos completar el análisis');
+ expect(screen.queryByText('INVALID_REPORT')).toBeNull(); expect(screen.queryByText('Riesgo bajo')).toBeNull();
+ rerender(<Report run={failed} technicalDetails />);
+ expect(screen.getByRole('alert').textContent).toContain('La respuesta no cumple el contrato');
+ expect(screen.getByText('INVALID_REPORT')).toBeTruthy(); expect(screen.queryByText('Riesgo bajo')).toBeNull();
 });

@@ -15,6 +15,7 @@ export default function App() {
   const [viewedId, setViewedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<EmailDetail | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [technicalDetails, setTechnicalDetails] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +113,7 @@ export default function App() {
             <p className="brand-sub">Análisis de ingeniería social en correos, con IA</p>
           </div>
         </div>
-        <span className="product-pill">Reglas + IA</span>
+        <span className="product-pill">{technicalDetails ? "Reglas + IA" : "Análisis de correo"}</span>
       </header>
       {error && (
         <div className="error" role="alert">
@@ -135,6 +136,7 @@ export default function App() {
           onProcessPending={() => void process(pendingIds)}
         />
         <section className="main">
+          <div className="view-settings"><div><span className="eyebrow">Vista del reporte</span><p id="report-view-help">{technicalDetails ? "Evidencias, reglas y fuentes del análisis." : "Lo importante, explicado de forma simple."}</p></div><button type="button" className={`btn view-toggle${technicalDetails ? " is-enabled" : ""}`} aria-pressed={technicalDetails} aria-describedby="report-view-help" onClick={() => setTechnicalDetails(current => !current)}><span className="view-toggle-symbol" aria-hidden="true">{technicalDetails ? "−" : "+"}</span>{technicalDetails ? "Menos detalles" : "Más detalles"}</button></div>
           {viewed ? (
             <Detail
               email={detail}
@@ -143,6 +145,7 @@ export default function App() {
               subject={viewed.subject}
               from={viewed.from}
               run={latest.get(viewed.id)}
+              technicalDetails={technicalDetails}
               busy={busy}
               onProcess={() => void process([viewed.id])}
             />
@@ -150,11 +153,11 @@ export default function App() {
             <p className="muted">Elegí un correo de la bandeja.</p>
           )}
           <section className="recent" id="recent-analyses" aria-label="Análisis recientes">
-            <header className="recent-head"><div><span className="eyebrow">Ambos orígenes · historial en memoria</span><h2>Análisis recientes <span className="section-count">{runs.length}</span></h2></div><button className="btn" onClick={() => void refreshRuns()}><Icon name="clock" size={14} />Actualizar</button></header>
-            <p className="hint">Incluye la bandeja y la extensión. Se pierde al reiniciar la API.</p>
+            <header className="recent-head"><div><span className="eyebrow">{technicalDetails ? "Ambos orígenes · historial en memoria" : "Tus resultados"}</span><h2>Análisis recientes <span className="section-count">{runs.length}</span></h2></div><button className="btn" onClick={() => void refreshRuns()}><Icon name="clock" size={14} />Actualizar</button></header>
+            <p className="hint">{technicalDetails ? "Incluye la bandeja y la extensión. Se pierde al reiniciar la API." : "Incluye los ejemplos y Gmail. El historial es temporal."}</p>
             <div className="recent-list">{[...runs].reverse().map(run => <details className="recent-item" id={`run-${run.runId}`} key={run.runId}>
               <summary><span className="recent-chevron" aria-hidden="true">›</span><span className="recent-copy"><span className="recent-meta"><span className={`source-badge source-${run.source}`}>{run.source === "EXTENSION" ? "Gmail" : "Ejemplo"}</span><time dateTime={run.createdAt}>{runTime(run.createdAt)}</time></span><span className="recent-subject">{run.emailPreview.subject}</span><span className="recent-from">{run.emailPreview.from}</span></span><span className="recent-state">{run.status === "ANALYZED" && run.report ? <span className={`risk-badge risk-${run.report.risk}`}>Riesgo {RISK_LABEL[run.report.risk]}</span> : <StatusBadge status={run.status} />}</span></summary>
-              <div className="recent-report"><Report run={run} /></div>
+              <div className="recent-report"><Report run={run} technicalDetails={technicalDetails} /></div>
             </details>)}</div>
             {!runs.length && <div className="panel recent-empty"><Icon name="clock" size={22} /><p>Tus análisis aparecerán acá.<span>Podés iniciarlos desde la bandeja o la extensión de Gmail.</span></p></div>}
           </section>

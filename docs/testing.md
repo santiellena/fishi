@@ -21,3 +21,7 @@ Para verificar compilación y empaquetado, ejecutar `npm run build`. Para ensayo
 ## Resultado del incremento de reglas y fundamentos
 
 Se ejecutaron `npm test` y `npm run test:unit`: **98 pruebas aprobadas** (72 API, 9 web y 17 extensión). `npm run build` completó API, web y extensión. Las pruebas HTTP separadas no se ejecutaron y no se iniciaron los servidores detenidos. No hubo llamadas reales a Claude ni una nueva validación manual de Gmail en este incremento.
+
+## Vista simple y técnica
+
+Las pruebas de UI comprueban la vista simple por defecto, el control global de detalle en bandeja e historial, el mantenimiento de riesgo/recomendaciones, el estado al cambiar de correo y la ausencia de solicitudes de reanálisis al alternar. Los errores siguen siendo errores en ambas vistas; los códigos quedan en la técnica. La suite actual suma **100 pruebas unitarias** tras agregar estos dos casos (72 API, 11 web y 17 extensión).
